@@ -1,21 +1,22 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
+import { useCelebration } from "../state/CelebrationContext";
 import { formatHoursMinutes } from "../lib/timeTranslator";
 import { dailyReclaimedMinutes } from "../lib/reclaim";
 import { homeMessage } from "../lib/messages";
+import ProgressRing from "../components/ProgressRing";
 import ProgressBar from "../components/ProgressBar";
+import AnimatedMinutes from "../components/AnimatedMinutes";
 import ReflectionPrompt from "../components/ReflectionPrompt";
 
 const REFLECTION_TRIGGER_MINUTES = 30;
 
 export default function Home() {
   const { state, derived, actions } = useAppState();
-  const { timeBank, streak, level, todaysTarget, usageToday, hasLoggedToday, todaysChallenge, nowIso, reminders } = derived;
+  const { celebrate } = useCelebration();
+  const { timeBank, streak, level, todaysTarget, hasLoggedToday, todaysChallenge, nowIso, reminders } = derived;
 
-  // Only a real, logged day earns a reclaimed figure — with nothing logged
-  // yet today, target-minus-zero would otherwise read as "reclaimed the
-  // whole target" before the user has done anything, which is misleading.
   const todayReclaimed = hasLoggedToday
     ? dailyReclaimedMinutes(nowIso, state.usageLog, state.targetHistory) || 0
     : 0;
@@ -26,11 +27,7 @@ export default function Home() {
   const alreadyReflectedToday = state.reflections.some((r) => r.date === nowIso);
 
   useEffect(() => {
-    if (
-      todayReclaimed >= REFLECTION_TRIGGER_MINUTES &&
-      !alreadyReflectedToday &&
-      !reflectionDismissedForToday
-    ) {
+    if (todayReclaimed >= REFLECTION_TRIGGER_MINUTES && !alreadyReflectedToday && !reflectionDismissedForToday) {
       setReflectionOpen(true);
     }
   }, [todayReclaimed, alreadyReflectedToday, reflectionDismissedForToday]);
@@ -38,114 +35,108 @@ export default function Home() {
   const msg = homeMessage({
     hasLoggedToday,
     reclaimedToday: todayReclaimed,
-    usageToday,
+    usageToday: derived.usageToday,
     target: todaysTarget,
     weekReclaimed: timeBank.week,
     streak,
   });
 
+  const ringProgress = todaysTarget ? Math.min(1, todayReclaimed / todaysTarget) : 0;
+
+  function completeChallenge() {
+    actions.completeTodayChallenge();
+    if (todaysChallenge.minutesReward > 0) {
+      celebrate({ icon: "🎯", title: "Challenge complete", subtitle: `+${todaysChallenge.minutesReward}m added to your Time Bank` });
+    } else {
+      celebrate({ icon: "🎯", title: "Challenge complete", subtitle: "Nice — that's today handled." });
+    }
+  }
+
   return (
     <div className="screen">
       <header className="top">
-        <h1>Recoup</h1>
+        <span className="wordmark">
+          <span className="dot" aria-hidden="true" />
+          Where'd my time go?
+        </span>
       </header>
 
-      <section className="card hero-metric">
-        <div className="label">Time Reclaimed</div>
-        <div className="value">{formatHoursMinutes(timeBank.week)}</div>
-        <div style={{ fontSize: 12, color: "var(--text)" }}>so far this week</div>
-
-        <div className="stat-row">
-          <div className="stat">
-            <div className="k">Today</div>
-            <div className="v">{formatHoursMinutes(usageToday)}</div>
-            <div style={{ fontSize: 11, color: "var(--text)" }}>screen time</div>
-          </div>
-          <div className="stat">
-            <div className="k">Daily target</div>
-            <div className="v">{todaysTarget != null ? formatHoursMinutes(todaysTarget) : "—"}</div>
-          </div>
-          <div className="stat">
-            <div className="k">Difference</div>
-            <div className="v" style={{ color: todayReclaimed > 0 ? "var(--good)" : "var(--text-h)" }}>
-              {todaysTarget == null || !hasLoggedToday
-                ? "—"
-                : todayReclaimed > 0
-                ? `${formatHoursMinutes(todayReclaimed)} reclaimed`
-                : "0m"}
+      <section className="hero-card">
+        <div className="hero-top">
+          <ProgressRing progress={ringProgress} size={176} stroke={13}>
+            <div className="hero-ring-stack">
+              <div className="hero-eyebrow">Time Reclaimed</div>
+              <AnimatedMinutes minutes={timeBank.week} as="div" className="hero-value" />
             </div>
-          </div>
+          </ProgressRing>
+        </div>
+
+        <div style={{ textAlign: "center", marginTop: 14 }}>
+          {hasLoggedToday && todayReclaimed > 0 && (
+            <div className="hero-delta">+{formatHoursMinutes(todayReclaimed)} today</div>
+          )}
+          {todaysTarget != null && (
+            <div className="hero-goal-label" style={{ marginTop: 6 }}>
+              Goal · {formatHoursMinutes(todaysTarget)}/day
+            </div>
+          )}
         </div>
 
         <div className="hero-message">
           <div className="headline">{msg.headline}</div>
-          {msg.sub && <div className="sub" style={{ marginBottom: 0 }}>{msg.sub}</div>}
+          {msg.sub && <div className="sub">{msg.sub}</div>}
+          {!hasLoggedToday && (
+            <Link to="/settings" className="link-cta primary" style={{ marginTop: 12, textDecoration: "none" }}>
+              Log today's time
+            </Link>
+          )}
         </div>
       </section>
 
-      {!hasLoggedToday && (
-        <section className="card">
-          <h2>Log today's screen time</h2>
-          <p className="sub">Recoup needs today's usage to calculate what you've reclaimed.</p>
-          <Link to="/settings" className="primary" style={{ display: "inline-block", padding: "10px 18px", borderRadius: 10, textDecoration: "none" }}>
-            Log usage
-          </Link>
-        </section>
-      )}
-
       <section className="card">
-        <div className="level-row">
-          <span className="title">Lv. {level.level} — {level.title}</span>
-          <span className="xp">{level.xpIntoLevel} / {level.xpForNext} XP</span>
-        </div>
-        <ProgressBar progress={level.progress} />
-      </section>
-
-      <section className="card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div className="streak-badge">
-            <span>🔥</span>
-            <span>{streak.current} DAY RUN</span>
+        <div style={{ display: "flex", gap: 20 }}>
+          <div style={{ flex: 1 }}>
+            <div className="streak-flame-row">
+              <span className={"streak-flame-icon" + (streak.current === 0 ? " dim" : "")}>🔥</span>
+              <span className="streak-value num">{streak.current}</span>
+              <span className="streak-unit">day{streak.current === 1 ? "" : "s"}</span>
+            </div>
+            <div className="streak-longest">Best: {streak.longest} days</div>
           </div>
-          <Link to="/progress" className="link" style={{ fontSize: 13 }}>Details →</Link>
+          <div style={{ width: 1, background: "var(--border)" }} />
+          <div style={{ flex: 1 }}>
+            <div className="level-title">Lv. {level.level} · {level.title}</div>
+            <div className="level-xp-caption">{level.xpIntoLevel} / {level.xpForNext} XP</div>
+            <ProgressBar progress={level.progress} />
+          </div>
         </div>
-        <p className="sub" style={{ marginTop: 8, marginBottom: 0 }}>
-          {streak.current > 0
-            ? `You've stayed under your target for ${streak.current} day${streak.current === 1 ? "" : "s"}.`
-            : streak.longest > 0
-            ? "Your run ended. Your progress didn't."
-            : "Meet your target today to start a run."}
-        </p>
       </section>
 
-      <section className="card challenge-card">
-        <div className="k">Today's Challenge</div>
+      <section className="challenge-card">
+        <div className="challenge-eyebrow">Today's Challenge</div>
         <h3>{todaysChallenge.title}</h3>
-        <p className="sub" style={{ marginBottom: 12 }}>{todaysChallenge.description}</p>
+        <p className="sub">{todaysChallenge.description}</p>
         {todaysChallenge.completed ? (
-          <span className="chip">✓ Completed today</span>
+          <span className="challenge-done-badge">✓ Done for today</span>
         ) : (
-          <button className="primary" onClick={() => actions.completeTodayChallenge()}>
-            Mark as done
-          </button>
+          <button className="primary" onClick={completeChallenge}>Mark as done</button>
         )}
       </section>
 
-      <section className="card">
-        <h2>Reclaim some time now</h2>
-        <p className="sub">Start a focus session — it's added straight to your Time Bank.</p>
-        <Link to="/focus" className="primary" style={{ display: "inline-block", padding: "10px 18px", borderRadius: 10, textDecoration: "none" }}>
-          Start a session
-        </Link>
-      </section>
+      <Link to="/focus" className="primary btn-lg" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, textDecoration: "none", marginBottom: 16 }}>
+        <span aria-hidden="true">◎</span> Reclaim time now
+      </Link>
 
       {reminders.length > 0 && (
         <section className="card">
-          <h2>Reminders</h2>
+          <div className="section-label" style={{ marginBottom: 10 }}>Reminders</div>
           {reminders.map((r) => (
             <div className="reminder-item" key={r.id}>
-              <div className="title">{r.title}</div>
-              <div className="body">{r.body}</div>
+              <span className="dot" aria-hidden="true" />
+              <div>
+                <div className="title">{r.title}</div>
+                <div className="body">{r.body}</div>
+              </div>
             </div>
           ))}
         </section>

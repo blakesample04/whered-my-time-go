@@ -5,6 +5,8 @@ import { formatHoursMinutes, headlineStat } from "../lib/timeTranslator";
 import { computeRecoveredMinutes, totalMinutesForApp } from "../lib/goals";
 import { parseCSV, splitHeaderAndRows, guessColumnMapping, normalizeRows } from "../lib/csvImport";
 import { TIME_BACK_REASONS } from "../state/defaultState";
+import Toggle from "../components/Toggle";
+import EmptyState from "../components/EmptyState";
 
 export default function Settings() {
   const { state, derived, actions } = useAppState();
@@ -133,14 +135,11 @@ export default function Settings() {
         <p className="sub">
           In-app reminders only for now — real push notifications need a native app, which this web version isn't (yet).
         </p>
-        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <input
-            type="checkbox"
-            checked={state.notificationsEnabled}
-            onChange={(e) => actions.setNotificationsEnabled(e.target.checked)}
-          />
-          Enable reminders
-        </label>
+        <Toggle
+          checked={state.notificationsEnabled}
+          onChange={(checked) => actions.setNotificationsEnabled(checked)}
+          label="Enable reminders"
+        />
       </section>
 
       <section className="card">
@@ -212,7 +211,9 @@ export default function Settings() {
             <button className="primary" type="submit">Add</button>
           </div>
         </form>
-        {state.appGoals.length === 0 && <p className="empty">No app goals set.</p>}
+        {state.appGoals.length === 0 && (
+          <EmptyState icon="🧩" title="No app goals yet" body="Add one above if there's a specific app you want to rein in." />
+        )}
         {state.appGoals.map((goal) => {
           const recovered = computeRecoveredMinutes(goal, state.usageLog);
           return (
@@ -251,7 +252,7 @@ export default function Settings() {
         <button
           className="secondary"
           onClick={() => {
-            if (confirm("Reset all Recoup data? This can't be undone.")) actions.resetAllData();
+            if (confirm("Reset all data in Where'd my time go? This can't be undone.")) actions.resetAllData();
           }}
         >
           Reset all data

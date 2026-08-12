@@ -4,12 +4,15 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
 import { AppStateProvider } from './state/AppStateContext.jsx'
+import { CelebrationProvider } from './state/CelebrationContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
       <AppStateProvider>
-        <App />
+        <CelebrationProvider>
+          <App />
+        </CelebrationProvider>
       </AppStateProvider>
     </BrowserRouter>
   </StrictMode>,

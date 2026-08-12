@@ -1,58 +1,196 @@
-:root {
-  --text: #4b4657;
-  --text-h: #14111a;
-  --bg: #faf9fc;
-  --card-bg: #ffffff;
-  --border: #e5e2ea;
-  --accent: #7c3aed;
-  --accent-bg: rgba(124, 58, 237, 0.08);
-  --good: #16a34a;
-  --good-bg: rgba(22, 163, 74, 0.08);
-  --warn: #dc2626;
-  --sans: system-ui, "Segoe UI", Roboto, sans-serif;
+@import "@fontsource/plus-jakarta-sans/400.css";
+@import "@fontsource/plus-jakarta-sans/500.css";
+@import "@fontsource/plus-jakarta-sans/600.css";
+@import "@fontsource/plus-jakarta-sans/700.css";
+@import "@fontsource/plus-jakarta-sans/800.css";
 
-  font: 16px/150% var(--sans);
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  -webkit-font-smoothing: antialiased;
+/* ==========================================================================
+   DESIGN TOKENS
+   Visual identity: "Ember" — a warm amber-to-coral glow (reclaimed time,
+   light, warmth) on a deep ink base. Deliberately avoids generic SaaS
+   purple, Apple Screen Time blue, and crypto-dashboard neon-on-black.
+   ========================================================================== */
+
+:root {
+  /* -- color: light (default) -- */
+  --bg: #fbf6ef;
+  --bg-2: #f5ecdf;
+  --card: #ffffff;
+  --card-2: #fff9f2;
+  --border: #ece2d6;
+  --border-strong: #ddccb8;
+
+  --text: #6b6072;
+  --text-h: #221c29;
+  --text-dim: #7d7188;
+
+  --accent: #ef6b3a;
+  --accent-2: #e8536b;
+  --accent-gradient: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+  --accent-bg: rgba(239, 107, 58, 0.1);
+  --accent-border: rgba(239, 107, 58, 0.3);
+  --accent-glow: rgba(239, 107, 58, 0.28);
+  /* --on-accent: text drawn ON TOP of the accent gradient (buttons, active
+     nav, selected chips). --accent-text: accent-colored text drawn on a
+     plain card/bg. These are deliberately separate tokens — the same hue
+     that reads fine as a border or icon fails WCAG AA as small text, so
+     each needs its own contrast-checked value rather than reusing --accent. */
+  --on-accent: #2b1208;
+  --accent-text: #bf4a1f;
+
+  --good: #3e9c6c;
+  --good-bg: rgba(62, 156, 108, 0.12);
+  --warn: #c94a63;
+  --warn-bg: rgba(201, 74, 99, 0.1);
+
+  --shadow-sm: 0 1px 2px rgba(60, 30, 10, 0.06);
+  --shadow-md: 0 10px 30px -12px rgba(60, 30, 10, 0.22);
+  --shadow-lg: 0 20px 50px -16px rgba(60, 30, 10, 0.28);
+  --shadow-glow: 0 0 0 1px var(--accent-border), 0 12px 32px -10px var(--accent-glow);
+
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #b7b2c3;
-    --text-h: #f3f1f7;
-    --bg: #141218;
-    --card-bg: #1d1a24;
-    --border: #322e3c;
-    --accent: #a78bfa;
-    --accent-bg: rgba(167, 139, 250, 0.12);
-    --good: #4ade80;
-    --good-bg: rgba(74, 222, 128, 0.12);
-    --warn: #f87171;
+    --bg: #120f14;
+    --bg-2: #17131a;
+    --card: #1c1720;
+    --card-2: #241d2a;
+    --border: #322938;
+    --border-strong: #453a4d;
+
+    --text: #b6adc0;
+    --text-h: #f6f1f8;
+    --text-dim: #9b91a8;
+
+    --accent: #ff8a4c;
+    --accent-2: #ff5f7a;
+    --accent-gradient: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+    --accent-bg: rgba(255, 138, 76, 0.14);
+    --accent-border: rgba(255, 138, 76, 0.38);
+    --accent-glow: rgba(255, 138, 76, 0.4);
+    --on-accent: #1a0f08;
+    --accent-text: #ff8a4c;
+
+    --good: #6fcf97;
+    --good-bg: rgba(111, 207, 151, 0.14);
+    --warn: #ff7a90;
+    --warn-bg: rgba(255, 122, 144, 0.14);
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 10px 30px -12px rgba(0, 0, 0, 0.55);
+    --shadow-lg: 0 24px 60px -16px rgba(0, 0, 0, 0.6);
+    --shadow-glow: 0 0 0 1px var(--accent-border), 0 0 40px -6px var(--accent-glow);
+
+    color-scheme: dark;
   }
 }
 
-* {
-  box-sizing: border-box;
+/* Manual theme toggle overrides (if ever added) win over the media query */
+:root[data-theme="dark"] {
+  --bg: #120f14; --bg-2: #17131a; --card: #1c1720; --card-2: #241d2a;
+  --border: #322938; --border-strong: #453a4d;
+  --text: #b6adc0; --text-h: #f6f1f8; --text-dim: #9b91a8;
+  --accent: #ff8a4c; --accent-2: #ff5f7a; --accent-bg: rgba(255, 138, 76, 0.14);
+  --accent-border: rgba(255, 138, 76, 0.38); --accent-glow: rgba(255, 138, 76, 0.4);
+  --on-accent: #1a0f08; --accent-text: #ff8a4c;
+  --good: #6fcf97; --good-bg: rgba(111, 207, 151, 0.14); --warn: #ff7a90; --warn-bg: rgba(255, 122, 144, 0.14);
+  color-scheme: dark;
 }
+:root[data-theme="light"] {
+  --bg: #fbf6ef; --bg-2: #f5ecdf; --card: #ffffff; --card-2: #fff9f2;
+  --border: #ece2d6; --border-strong: #ddccb8;
+  --text: #6b6072; --text-h: #221c29; --text-dim: #7d7188;
+  --accent: #ef6b3a; --accent-2: #e8536b; --accent-bg: rgba(239, 107, 58, 0.1);
+  --accent-border: rgba(239, 107, 58, 0.3); --accent-glow: rgba(239, 107, 58, 0.28);
+  --on-accent: #2b1208; --accent-text: #bf4a1f;
+  --good: #3e9c6c; --good-bg: rgba(62, 156, 108, 0.12); --warn: #c94a63; --warn-bg: rgba(201, 74, 99, 0.1);
+  color-scheme: light;
+}
+
+:root {
+  /* -- type -- */
+  --font: "Plus Jakarta Sans", system-ui, "Segoe UI", Roboto, sans-serif;
+
+  /* -- space (4px base) -- */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px;
+  --sp-6: 24px; --sp-8: 32px; --sp-10: 40px; --sp-12: 48px; --sp-16: 64px;
+
+  /* -- radii -- */
+  --r-sm: 10px; --r-md: 14px; --r-lg: 20px; --r-xl: 28px; --r-pill: 999px;
+
+  /* -- motion -- */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 150ms;
+  --dur-base: 280ms;
+  --dur-slow: 480ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0ms; --dur-base: 0ms; --dur-slow: 0ms; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-tap-highlight-color: transparent; }
 
 body {
   margin: 0;
+  font: 15px/1.55 var(--font);
+  color: var(--text);
+  background: var(--bg);
+  background-image:
+    radial-gradient(600px 300px at 15% -10%, var(--accent-bg), transparent 60%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 #root {
-  max-width: 760px;
+  max-width: 480px;
   margin: 0 auto;
-  padding: 24px 20px 80px;
+  min-height: 100svh;
+  position: relative;
 }
 
 h1, h2, h3 {
   color: var(--text-h);
-  font-weight: 600;
+  font-weight: 700;
   margin: 0;
+  letter-spacing: -0.01em;
 }
 
-p {
-  margin: 0;
+p { margin: 0; }
+
+a { color: inherit; }
+
+button { font-family: inherit; }
+
+::selection { background: var(--accent-glow); }
+
+/* Numeric / hero figures: tabular numerals so digits don't jiggle the
+   layout as they animate, tighter tracking at large sizes for a premium,
+   confident feel rather than default loose system spacing. */
+.num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  font-weight: 800;
 }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+/* scrollbar (webkit) kept minimal/unobtrusive */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: var(--r-pill); }
+::-webkit-scrollbar-track { background: transparent; }
