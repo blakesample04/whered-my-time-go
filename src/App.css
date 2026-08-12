@@ -1,6 +1,12 @@
+/* ---------- layout shell ---------- */
+
+.screen {
+  padding-bottom: 90px; /* clears the fixed bottom nav */
+}
+
 header.top {
   text-align: center;
-  margin-bottom: 32px;
+  margin-bottom: 28px;
 }
 
 header.top p {
@@ -8,33 +14,53 @@ header.top p {
   margin-top: 6px;
 }
 
-.card {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 20px;
+.screen-title {
   margin-bottom: 20px;
 }
 
+.screen-title h1 {
+  font-size: 22px;
+}
+
+.screen-title p {
+  color: var(--text);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+/* ---------- cards ---------- */
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
 .card h2 {
-  font-size: 18px;
+  font-size: 17px;
   margin-bottom: 4px;
 }
 
 .card .sub {
-  font-size: 14px;
+  font-size: 13.5px;
   color: var(--text);
   margin-bottom: 16px;
 }
+
+/* ---------- forms / buttons ---------- */
 
 .form-row {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 10px;
+  align-items: center;
 }
 
-.form-row input {
+.form-row input,
+.form-row select {
   flex: 1 1 120px;
   min-width: 0;
   padding: 9px 10px;
@@ -46,8 +72,8 @@ header.top p {
 }
 
 button.primary {
-  padding: 9px 16px;
-  border-radius: 8px;
+  padding: 10px 18px;
+  border-radius: 10px;
   border: none;
   background: var(--accent);
   color: white;
@@ -56,8 +82,18 @@ button.primary {
   cursor: pointer;
 }
 
-button.primary:hover {
-  opacity: 0.9;
+button.primary:hover { opacity: 0.9; }
+button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+button.secondary {
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-h);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 button.link {
@@ -70,46 +106,29 @@ button.link {
   padding: 0;
 }
 
+button.chip-toggle {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  font: inherit;
+  cursor: pointer;
+}
+
+button.chip-toggle.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
 .empty {
   color: var(--text);
   font-size: 14px;
   font-style: italic;
 }
 
-.app-block {
-  border-top: 1px solid var(--border);
-  padding-top: 16px;
-  margin-top: 16px;
-}
-
-.app-block:first-child {
-  border-top: none;
-  padding-top: 0;
-  margin-top: 0;
-}
-
-.app-block h3 {
-  font-size: 16px;
-}
-
-.app-block .total {
-  font-size: 13px;
-  color: var(--text);
-  margin-bottom: 6px;
-}
-
-.headline {
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--accent);
-  margin: 6px 0 10px;
-}
-
-.comparisons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
+/* ---------- misc shared ---------- */
 
 .chip {
   background: var(--accent-bg);
@@ -117,42 +136,20 @@ button.link {
   border-radius: 999px;
   padding: 5px 12px;
   font-size: 13px;
+  display: inline-block;
 }
 
-.goal-block {
-  border-top: 1px solid var(--border);
-  padding-top: 16px;
-  margin-top: 16px;
+.progress-track {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  overflow: hidden;
 }
 
-.goal-block:first-child {
-  border-top: none;
-  padding-top: 0;
-  margin-top: 0;
-}
-
-.recovered {
-  background: var(--good-bg);
-  border-radius: 10px;
-  padding: 14px;
-  margin-top: 8px;
-}
-
-.recovered .amount {
-  color: var(--good);
-  font-size: 22px;
-  font-weight: 700;
-}
-
-.recovered .caption {
-  font-size: 13px;
-  color: var(--text);
-  margin-top: 2px;
-}
-
-.goal-meta {
-  font-size: 13px;
-  color: var(--text);
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s ease;
 }
 
 .today-status {
@@ -172,4 +169,461 @@ button.link {
 .today-status.under {
   color: var(--good);
   background: var(--good-bg);
+}
+
+/* ---------- Home: hero metric ---------- */
+
+.hero-metric {
+  text-align: center;
+  padding: 8px 0 4px;
+}
+
+.hero-metric .label {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.hero-metric .value {
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 4px 0 10px;
+  line-height: 1.1;
+}
+
+.hero-message {
+  text-align: center;
+  margin-top: 4px;
+}
+
+.hero-message .headline {
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.hero-message .sub {
+  margin-top: 4px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.stat-row .stat {
+  flex: 1;
+  text-align: center;
+}
+
+.stat-row .stat .k {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text);
+}
+
+.stat-row .stat .v {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-h);
+  margin-top: 2px;
+}
+
+/* ---------- Time Bank ---------- */
+
+.time-bank-hero {
+  text-align: center;
+}
+
+.time-bank-hero .value {
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--good);
+}
+
+.time-bank-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.time-bank-grid .cell {
+  text-align: center;
+  background: var(--good-bg);
+  border-radius: 10px;
+  padding: 10px 4px;
+}
+
+.time-bank-grid .cell .k {
+  font-size: 11px;
+  color: var(--text);
+  text-transform: uppercase;
+}
+
+.time-bank-grid .cell .v {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-h);
+  margin-top: 2px;
+}
+
+/* ---------- Streak / level ---------- */
+
+.streak-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.level-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.level-row .title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.level-row .xp {
+  font-size: 12px;
+  color: var(--text);
+}
+
+/* ---------- Challenge card ---------- */
+
+.challenge-card {
+  border-radius: 14px;
+  padding: 18px;
+  background: linear-gradient(135deg, var(--accent-bg), transparent);
+  border: 1px solid var(--accent-border, var(--border));
+}
+
+.challenge-card .k {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.challenge-card h3 {
+  margin: 6px 0 4px;
+  font-size: 16px;
+}
+
+/* ---------- Achievements ---------- */
+
+.achievement-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.achievement {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--bg);
+}
+
+.achievement.unlocked {
+  background: var(--good-bg);
+  border-color: transparent;
+}
+
+.achievement .title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-h);
+}
+
+.achievement .desc {
+  font-size: 12px;
+  color: var(--text);
+  margin-top: 4px;
+}
+
+.achievement .state {
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.achievement.unlocked .state { color: var(--good); }
+.achievement:not(.unlocked) .state { color: var(--text); }
+
+/* ---------- Focus timer ---------- */
+
+.timer-circle {
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  border: 10px solid var(--accent-bg);
+  border-top-color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 24px auto;
+  transition: border-top-color 0.3s;
+}
+
+.timer-circle .time {
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--text-h);
+}
+
+.duration-picker {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ---------- Weekly report ---------- */
+
+.report-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.report-stat:last-child { border-bottom: none; }
+
+.report-stat .label { color: var(--text); font-size: 14px; }
+.report-stat .value { font-weight: 600; color: var(--text-h); }
+.report-stat .value.good { color: var(--good); }
+
+.category-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.category-bar-row .name {
+  width: 90px;
+  font-size: 13px;
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+.category-bar-row .track {
+  flex: 1;
+}
+
+.category-bar-row .amount {
+  font-size: 12px;
+  color: var(--text);
+  width: 56px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ---------- Onboarding ---------- */
+
+.onboarding {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.onboarding h1 {
+  font-size: 30px;
+  margin-bottom: 12px;
+}
+
+.onboarding p.lead {
+  color: var(--text);
+  font-size: 16px;
+  margin-bottom: 28px;
+}
+
+.onboarding-goals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 28px;
+}
+
+.onboarding-nav {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.onboarding-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 24px;
+}
+
+.onboarding-dots .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.onboarding-dots .dot.active {
+  background: var(--accent);
+}
+
+.projection-box {
+  background: var(--accent-bg);
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.projection-box .big {
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.projection-box .estimate-note {
+  font-size: 12px;
+  color: var(--text);
+  margin-top: 8px;
+}
+
+/* ---------- Modal ---------- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal-sheet {
+  background: var(--card-bg);
+  border-radius: 16px 16px 0 0;
+  padding: 20px;
+  width: 100%;
+  max-width: 760px;
+  max-height: 80svh;
+  overflow-y: auto;
+}
+
+@media (min-width: 520px) {
+  .modal-backdrop { align-items: center; }
+  .modal-sheet { border-radius: 16px; margin: 20px; }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.reflection-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.reflection-chip {
+  padding: 14px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-h);
+  font: inherit;
+  cursor: pointer;
+}
+
+.reflection-chip:hover {
+  border-color: var(--accent);
+}
+
+/* ---------- reminders ---------- */
+
+.reminder-item {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.reminder-item:last-child { border-bottom: none; }
+.reminder-item .title { font-weight: 600; font-size: 13.5px; }
+.reminder-item .body { font-size: 12.5px; color: var(--text); margin-top: 2px; }
+
+/* ---------- app-goal blocks (reused from original per-app goal feature) ---------- */
+
+.app-block, .goal-block {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-top: 16px;
+}
+
+.app-block:first-child, .goal-block:first-child {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.app-block h3, .goal-block h3 { font-size: 16px; }
+
+.app-block .total, .goal-meta {
+  font-size: 13px;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.headline {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--accent);
+  margin: 6px 0 10px;
+}
+
+.comparisons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.recovered {
+  background: var(--good-bg);
+  border-radius: 10px;
+  padding: 14px;
+  margin-top: 8px;
+}
+
+.recovered .amount {
+  color: var(--good);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.recovered .caption {
+  font-size: 13px;
+  color: var(--text);
+  margin-top: 2px;
 }

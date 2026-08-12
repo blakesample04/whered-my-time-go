@@ -1,0 +1,262 @@
+import { useState } from "react";
+import { useAppState } from "../state/AppStateContext";
+import { todayISO } from "../lib/dateUtils";
+import { formatHoursMinutes, headlineStat } from "../lib/timeTranslator";
+import { computeRecoveredMinutes, totalMinutesForApp } from "../lib/goals";
+import { parseCSV, splitHeaderAndRows, guessColumnMapping, normalizeRows } from "../lib/csvImport";
+import { TIME_BACK_REASONS } from "../state/defaultState";
+
+export default function Settings() {
+  const { state, derived, actions } = useAppState();
+
+  // --- daily target ---
+  const [targetInput, setTargetInput] = useState(derived.todaysTarget ?? 240);
+
+  // --- manual usage entry ---
+  const [usageForm, setUsageForm] = useState({ date: todayISO(), appName: "", minutes: "" });
+
+  // --- per-app goals ---
+  const [goalForm, setGoalForm] = useState({ appName: "", baselineMinutesPerDay: "", dailyLimitMinutes: "" });
+
+  // --- csv import ---
+  const [importState, setImportState] = useState(null);
+  const [importSummary, setImportSummary] = useState(null);
+  const [importError, setImportError] = useState("");
+
+  function handleSetTarget(e) {
+    e.preventDefault();
+    const minutes = Number(targetInput);
+    if (!minutes || minutes <= 0) return;
+    actions.setDailyTarget(minutes);
+  }
+
+  function handleAddUsage(e) {
+    e.preventDefault();
+    const minutes = Number(usageForm.minutes);
+    if (!usageForm.appName.trim() || !minutes || minutes <= 0) return;
+    actions.addUsageEntry({ date: usageForm.date, appName: usageForm.appName.trim(), minutes });
+    setUsageForm({ date: todayISO(), appName: "", minutes: "" });
+  }
+
+  function handleAddGoal(e) {
+    e.preventDefault();
+    const baseline = Number(goalForm.baselineMinutesPerDay);
+    const limit = Number(goalForm.dailyLimitMinutes);
+    if (!goalForm.appName.trim() || !baseline || !limit) return;
+    actions.addAppGoal({ appName: goalForm.appName.trim(), baselineMinutesPerDay: baseline, dailyLimitMinutes: limit });
+    setGoalForm({ appName: "", baselineMinutesPerDay: "", dailyLimitMinutes: "" });
+  }
+
+  function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportError("");
+    setImportSummary(null);
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const rows = parseCSV(String(reader.result));
+        const { headers, dataRows } = splitHeaderAndRows(rows);
+        if (headers.length === 0 || dataRows.length === 0) {
+          setImportError("Couldn't find any rows in that file.");
+          return;
+        }
+        setImportState({ headers, dataRows, mapping: guessColumnMapping(headers) });
+      } catch {
+        setImportError("Couldn't read that file as CSV.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
+
+  function updateMapping(field, value) {
+    setImportState({ ...importState, mapping: { ...importState.mapping, [field]: Number(value) } });
+  }
+
+  function handleImportConfirm() {
+    const { dataRows, mapping } = importState;
+    if (mapping.dateCol === -1 || mapping.appCol === -1 || mapping.minutesCol === -1) {
+      setImportError("Please choose a column for Date, App, and Duration before importing.");
+      return;
+    }
+    const { entries, skipped } = normalizeRows(dataRows, mapping);
+    actions.importUsageEntries(entries);
+    setImportSummary({ imported: entries.length, skipped });
+    setImportState(null);
+  }
+
+  const appNames = [...new Set(state.usageLog.map((u) => u.appName))];
+
+  return (
+    <div className="screen">
+      <div className="screen-title">
+        <h1>Settings</h1>
+        <p>Your targets, your data, your goals — all changeable, nothing lost.</p>
+      </div>
+
+      <section className="card">
+        <h2>Daily target</h2>
+        <p className="sub">
+          Changing this only affects today onward — your history keeps whatever target was active on each past day.
+        </p>
+        <form onSubmit={handleSetTarget}>
+          <div className="form-row">
+            <input type="number" min="10" value={targetInput} onChange={(e) => setTargetInput(e.target.value)} />
+            <span style={{ color: "var(--text)", flex: "0 0 auto" }}>minutes/day</span>
+            <button className="primary" type="submit">Save</button>
+          </div>
+        </form>
+        {derived.todaysTarget != null && (
+          <p className="sub" style={{ marginBottom: 0 }}>Current: {formatHoursMinutes(derived.todaysTarget)}/day</p>
+        )}
+      </section>
+
+      <section className="card">
+        <h2>What you want your time back for</h2>
+        <p className="sub">Used to frame your reclaimed time throughout the app.</p>
+        <div className="onboarding-goals" style={{ justifyContent: "flex-start" }}>
+          {TIME_BACK_REASONS.map((g) => (
+            <button
+              key={g.id}
+              className={"chip-toggle" + (state.timeBackGoals.includes(g.id) ? " selected" : "")}
+              onClick={() => actions.toggleTimeBackGoal(g.id)}
+            >
+              {g.label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="card">
+        <h2>Notifications</h2>
+        <p className="sub">
+          In-app reminders only for now — real push notifications need a native app, which this web version isn't (yet).
+        </p>
+        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input
+            type="checkbox"
+            checked={state.notificationsEnabled}
+            onChange={(e) => actions.setNotificationsEnabled(e.target.checked)}
+          />
+          Enable reminders
+        </label>
+      </section>
+
+      <section className="card">
+        <h2>Log usage</h2>
+        <p className="sub">Manual entry — or import a CSV below.</p>
+        <form onSubmit={handleAddUsage}>
+          <div className="form-row">
+            <input type="date" value={usageForm.date} onChange={(e) => setUsageForm({ ...usageForm, date: e.target.value })} />
+            <input type="text" placeholder="App name" value={usageForm.appName} onChange={(e) => setUsageForm({ ...usageForm, appName: e.target.value })} />
+            <input type="number" min="1" placeholder="Minutes" value={usageForm.minutes} onChange={(e) => setUsageForm({ ...usageForm, minutes: e.target.value })} />
+            <button className="primary" type="submit">Add</button>
+          </div>
+        </form>
+      </section>
+
+      <section className="card">
+        <h2>Import from CSV</h2>
+        <p className="sub">Any spreadsheet with a date, app name, and duration column. Duration can be minutes, "1h 23m", or "H:MM:SS".</p>
+        <div className="form-row">
+          <input type="file" accept=".csv,text/csv" onChange={handleFileChange} />
+        </div>
+        {importError && <p className="empty" style={{ color: "var(--warn)" }}>{importError}</p>}
+        {importSummary && (
+          <p className="empty">
+            Imported {importSummary.imported} entr{importSummary.imported === 1 ? "y" : "ies"}
+            {importSummary.skipped > 0 ? `, skipped ${importSummary.skipped} unreadable row${importSummary.skipped === 1 ? "" : "s"}` : ""}.
+          </p>
+        )}
+        {importState && (
+          <div>
+            <div className="form-row">
+              <label>Date{" "}
+                <select value={importState.mapping.dateCol} onChange={(e) => updateMapping("dateCol", e.target.value)}>
+                  <option value={-1}>-- choose --</option>
+                  {importState.headers.map((h, i) => <option key={i} value={i}>{h}</option>)}
+                </select>
+              </label>
+              <label>App{" "}
+                <select value={importState.mapping.appCol} onChange={(e) => updateMapping("appCol", e.target.value)}>
+                  <option value={-1}>-- choose --</option>
+                  {importState.headers.map((h, i) => <option key={i} value={i}>{h}</option>)}
+                </select>
+              </label>
+              <label>Duration{" "}
+                <select value={importState.mapping.minutesCol} onChange={(e) => updateMapping("minutesCol", e.target.value)}>
+                  <option value={-1}>-- choose --</option>
+                  {importState.headers.map((h, i) => <option key={i} value={i}>{h}</option>)}
+                </select>
+              </label>
+            </div>
+            <div className="form-row">
+              <button className="primary" type="button" onClick={handleImportConfirm}>
+                Import {importState.dataRows.length} rows
+              </button>
+              <button className="link" type="button" onClick={() => setImportState(null)}>Cancel</button>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="card">
+        <h2>App goals (optional)</h2>
+        <p className="sub">A separate, optional per-app target — independent of your overall daily target above.</p>
+        <form onSubmit={handleAddGoal}>
+          <div className="form-row">
+            <input type="text" placeholder="App name" value={goalForm.appName} onChange={(e) => setGoalForm({ ...goalForm, appName: e.target.value })} />
+            <input type="number" min="1" placeholder="Used to spend (min/day)" value={goalForm.baselineMinutesPerDay} onChange={(e) => setGoalForm({ ...goalForm, baselineMinutesPerDay: e.target.value })} />
+            <input type="number" min="1" placeholder="New goal (min/day)" value={goalForm.dailyLimitMinutes} onChange={(e) => setGoalForm({ ...goalForm, dailyLimitMinutes: e.target.value })} />
+            <button className="primary" type="submit">Add</button>
+          </div>
+        </form>
+        {state.appGoals.length === 0 && <p className="empty">No app goals set.</p>}
+        {state.appGoals.map((goal) => {
+          const recovered = computeRecoveredMinutes(goal, state.usageLog);
+          return (
+            <div className="goal-block" key={goal.id}>
+              <h3>{goal.appName}</h3>
+              <div className="goal-meta">
+                Baseline {formatHoursMinutes(goal.baselineMinutesPerDay)}/day · Goal {formatHoursMinutes(goal.dailyLimitMinutes)}/day
+              </div>
+              <div className="recovered">
+                <div className="amount">{formatHoursMinutes(recovered)} recovered</div>
+              </div>
+              <button className="link" style={{ marginTop: 8 }} onClick={() => actions.removeAppGoal(goal.id)}>Remove</button>
+            </div>
+          );
+        })}
+      </section>
+
+      {appNames.length > 0 && (
+        <section className="card">
+          <h2>All-time usage by app</h2>
+          {appNames.map((name) => {
+            const total = totalMinutesForApp(name, state.usageLog);
+            return (
+              <div className="app-block" key={name}>
+                <h3>{name}</h3>
+                <div className="total">{formatHoursMinutes(total)} — {headlineStat(total)}</div>
+              </div>
+            );
+          })}
+        </section>
+      )}
+
+      <section className="card">
+        <h2>Reset</h2>
+        <p className="sub">Clears everything — usage, targets, Time Bank, XP, streaks, achievements. Can't be undone.</p>
+        <button
+          className="secondary"
+          onClick={() => {
+            if (confirm("Reset all Recoup data? This can't be undone.")) actions.resetAllData();
+          }}
+        >
+          Reset all data
+        </button>
+      </section>
+    </div>
+  );
+}
