@@ -12,6 +12,12 @@ import {
   loggedDayCount,
   isOverGoalToday,
 } from "./lib/goals";
+import {
+  parseCSV,
+  splitHeaderAndRows,
+  guessColumnMapping,
+  normalizeRows,
+} from "./lib/csvImport";
 
 const USAGE_KEY = "recoup.usageLog";
 const GOALS_KEY = "recoup.goals";
@@ -43,6 +49,10 @@ function App() {
     baselineMinutesPerDay: "",
     dailyLimitMinutes: "",
   });
+
+  const [importState, setImportState] = useState(null); // { headers, dataRows, mapping }
+  const [importSummary, setImportSummary] = useState(null); // { imported, skipped }
+  const [importError, setImportError] = useState("");
 
   function persistUsage(next) {
     setUsageLog(next);
@@ -85,6 +95,58 @@ function App() {
     persistGoals(goals.filter((g) => g.id !== id));
   }
 
+  function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportError("");
+    setImportSummary(null);
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const rows = parseCSV(String(reader.result));
+        const { headers, dataRows } = splitHeaderAndRows(rows);
+        if (headers.length === 0 || dataRows.length === 0) {
+          setImportError("Couldn't find any rows in that file.");
+          return;
+        }
+        const mapping = guessColumnMapping(headers);
+        setImportState({ headers, dataRows, mapping });
+      } catch {
+        setImportError("Couldn't read that file as CSV.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = ""; // allow re-selecting the same file later
+  }
+
+  function updateMapping(field, value) {
+    setImportState({
+      ...importState,
+      mapping: { ...importState.mapping, [field]: Number(value) },
+    });
+  }
+
+  function handleImportConfirm() {
+    const { dataRows, mapping } = importState;
+    if (mapping.dateCol === -1 || mapping.appCol === -1 || mapping.minutesCol === -1) {
+      setImportError("Please choose a column for Date, App, and Duration before importing.");
+      return;
+    }
+    const { entries, skipped } = normalizeRows(dataRows, mapping);
+    if (entries.length > 0) {
+      const keySet = new Set(entries.map((e) => `${e.date}|${e.appName}`));
+      const kept = usageLog.filter((u) => !keySet.has(`${u.date}|${u.appName}`));
+      persistUsage([...kept, ...entries]);
+    }
+    setImportSummary({ imported: entries.length, skipped });
+    setImportState(null);
+  }
+
+  function handleImportCancel() {
+    setImportState(null);
+    setImportError("");
+  }
+
   const appNames = [...new Set(usageLog.map((u) => u.appName))];
 
   return (
@@ -123,6 +185,101 @@ function App() {
             <button className="primary" type="submit">Add</button>
           </div>
         </form>
+      </section>
+
+      <section className="card">
+        <h2>Import from CSV</h2>
+        <p className="sub">
+          Faster than typing entries one at a time. Any spreadsheet with a date, an app name, and a
+          duration column works — export it as CSV from Google Sheets/Excel, or from a phone usage
+          tracker if yours supports it. Duration can be minutes, "1h 23m", or "H:MM:SS".
+        </p>
+        <div className="form-row">
+          <input type="file" accept=".csv,text/csv" onChange={handleFileChange} />
+        </div>
+        {importError && <p className="empty" style={{ color: "var(--warn)" }}>{importError}</p>}
+        {importSummary && (
+          <p className="empty">
+            Imported {importSummary.imported} entr{importSummary.imported === 1 ? "y" : "ies"}
+            {importSummary.skipped > 0 ? `, skipped ${importSummary.skipped} unreadable row${importSummary.skipped === 1 ? "" : "s"}` : ""}.
+          </p>
+        )}
+
+        {importState && (
+          <div>
+            <div className="form-row">
+              <label>
+                Date column{" "}
+                <select
+                  value={importState.mapping.dateCol}
+                  onChange={(e) => updateMapping("dateCol", e.target.value)}
+                >
+                  <option value={-1}>-- choose --</option>
+                  {importState.headers.map((h, i) => (
+                    <option key={i} value={i}>{h}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                App column{" "}
+                <select
+                  value={importState.mapping.appCol}
+                  onChange={(e) => updateMapping("appCol", e.target.value)}
+                >
+                  <option value={-1}>-- choose --</option>
+                  {importState.headers.map((h, i) => (
+                    <option key={i} value={i}>{h}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Duration column{" "}
+                <select
+                  value={importState.mapping.minutesCol}
+                  onChange={(e) => updateMapping("minutesCol", e.target.value)}
+                >
+                  <option value={-1}>-- choose --</option>
+                  {importState.headers.map((h, i) => (
+                    <option key={i} value={i}>{h}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <p className="sub">Preview (first {Math.min(5, importState.dataRows.length)} rows):</p>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr>
+                    {importState.headers.map((h, i) => (
+                      <th key={i} style={{ textAlign: "left", padding: "4px 8px", borderBottom: "1px solid var(--border)" }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {importState.dataRows.slice(0, 5).map((row, i) => (
+                    <tr key={i}>
+                      {row.map((cell, j) => (
+                        <td key={j} style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)" }}>
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="form-row" style={{ marginTop: 12 }}>
+              <button className="primary" type="button" onClick={handleImportConfirm}>
+                Import {importState.dataRows.length} row{importState.dataRows.length === 1 ? "" : "s"}
+              </button>
+              <button className="link" type="button" onClick={handleImportCancel}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="card">
