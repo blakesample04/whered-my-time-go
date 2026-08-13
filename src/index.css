@@ -151,6 +151,12 @@ body {
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* Stops rubber-band bounce scrolling from dragging the fixed bottom nav
+     along with it on iOS — a common cause of a fixed element appearing to
+     "jump" position when a short page is bounce-scrolled. */
+  overscroll-behavior-y: none;
 }
 
 #root {

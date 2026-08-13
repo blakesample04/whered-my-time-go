@@ -52,12 +52,13 @@ export default function Focus() {
   }
 
   return (
-    <div className="screen">
+    <div className="screen focus-screen">
       <div className="screen-title">
         <h1>Reclaim Time</h1>
         <p>A focused block, phone-free — added straight to your Time Bank when it's done.</p>
       </div>
 
+      <div className="focus-body">
       {justCompleted != null && !active && (
         <section className="card reclaim-result">
           <div className="icon" aria-hidden="true">✓</div>
@@ -103,6 +104,7 @@ export default function Focus() {
           </>
         )}
       </section>
+      </div>
     </div>
   );
 }

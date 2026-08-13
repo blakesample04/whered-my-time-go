@@ -10,7 +10,6 @@
   <g fill="#fff9f2">
     <rect x="146" y="140" width="220" height="20" rx="8"/>
     <rect x="146" y="352" width="220" height="20" rx="8"/>
-    <path d="M166 160 L346 160 L266 256 L346 352 L166 352 L246 256 Z" fill-opacity="0.95"/>
+    <path d="M166 160 L346 160 L266 256 L346 352 L166 352 L246 256 Z"/>
   </g>
-  <path d="M256 200 a30 30 0 0 1 0 60" fill="none" stroke="#150e18" stroke-width="10" stroke-linecap="round" opacity="0.35"/>
 </svg>

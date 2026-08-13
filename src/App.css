@@ -3,7 +3,14 @@
    ========================================================================== */
 
 .screen {
-  padding: var(--sp-5) var(--sp-5) 110px;
+  /* env(safe-area-inset-*) only has a nonzero value when the page is
+     displayed edge-to-edge (viewport-fit=cover, which we set) — this is
+     what keeps header content from rendering underneath the iPhone's
+     status bar/notch when the app is installed as a standalone PWA. */
+  padding: max(var(--sp-5), env(safe-area-inset-top)) max(var(--sp-5), env(safe-area-inset-right)) 110px
+    max(var(--sp-5), env(safe-area-inset-left));
+  min-height: 100svh;
+  box-sizing: border-box;
   animation: screenIn var(--dur-base) var(--ease);
 }
 
@@ -696,6 +703,22 @@ header.top .wordmark .dot {
    FOCUS TIMER
    ========================================================================== */
 
+/* The idle "choose a length" state is short, and .screen's min-height means
+   there'd otherwise be a lot of dead space below it before the nav bar.
+   Centering the body vertically makes that read as intentional instead of
+   like unfinished content. */
+.focus-screen {
+  display: flex;
+  flex-direction: column;
+}
+
+.focus-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
 .timer-stage {
   display: flex;
   flex-direction: column;
@@ -870,9 +893,10 @@ header.top .wordmark .dot {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: var(--sp-8) var(--sp-6);
+  padding: max(var(--sp-8), env(safe-area-inset-top)) var(--sp-6) max(var(--sp-8), env(safe-area-inset-bottom));
   text-align: center;
   position: relative;
+  box-sizing: border-box;
 }
 
 .onb-icon {

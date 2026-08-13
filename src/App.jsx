@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import "./App.css";
 import { useAppState } from "./state/AppStateContext";
@@ -9,9 +10,22 @@ import Report from "./screens/Report";
 import Progress from "./screens/Progress";
 import Settings from "./screens/Settings";
 
+// React Router doesn't reset scroll position on navigation by default. Without
+// this, switching from a tall, scrolled-down screen (e.g. Home) to a short one
+// (e.g. Focus) lands you mid-page with blank space above the content — which
+// on iOS can also make the fixed bottom nav appear to jump position.
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
+
 function AppShell() {
   return (
     <>
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/focus" element={<Focus />} />
