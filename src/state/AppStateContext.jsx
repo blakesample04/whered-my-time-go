@@ -26,7 +26,8 @@ import { challengeForDate, isChallengeCompleted, buildCompletionRecord } from ".
 import { buildReflection } from "../lib/reflections";
 import { buildWeeklyReport } from "../lib/weeklyReport";
 import { getPendingReminders } from "../lib/notifications";
-import { createGoal } from "../lib/goals";
+import { createGoal as createAppGoal } from "../lib/goals";
+import { createGoal, createStep, goalProgress, nextStep, activeGoalOf } from "../lib/purpose";
 
 const AppStateContext = createContext(null);
 
@@ -113,6 +114,10 @@ export function AppStateProvider({ children }) {
     [state.notificationsEnabled, nowIso, timeBank, usageToday, streak, todaysChallenge]
   );
 
+  const activeGoal = useMemo(() => activeGoalOf(state.goals), [state.goals]);
+  const activeGoalProgress = useMemo(() => goalProgress(activeGoal), [activeGoal]);
+  const activeGoalNextStep = useMemo(() => nextStep(activeGoal), [activeGoal]);
+
   const derived = {
     nowIso,
     timeBank,
@@ -127,6 +132,9 @@ export function AppStateProvider({ children }) {
     todaysChallenge,
     weeklyReport,
     reminders,
+    activeGoal,
+    activeGoalProgress,
+    activeGoalNextStep,
     isFirstTimeUser: state.usageLog.length === 0,
   };
 
@@ -152,12 +160,64 @@ export function AppStateProvider({ children }) {
       },
 
       addAppGoal({ appName, baselineMinutesPerDay: baseline, dailyLimitMinutes }) {
-        const goal = createGoal({ appName, baselineMinutesPerDay: baseline, dailyLimitMinutes });
+        const goal = createAppGoal({ appName, baselineMinutesPerDay: baseline, dailyLimitMinutes });
         patch((prev) => ({ appGoals: [...prev.appGoals, goal] }));
       },
 
       removeAppGoal(id) {
         patch((prev) => ({ appGoals: prev.appGoals.filter((g) => g.id !== id) }));
+      },
+
+      // --- purpose goals ("what you're working toward") ---
+
+      addGoal({ title, category, why, initialSteps = [] }) {
+        if (!title || !title.trim()) return null;
+        let created = null;
+        patch((prev) => {
+          created = createGoal({ title, category, why, isActive: prev.goals.length === 0 });
+          created.steps = initialSteps.filter((s) => s && s.trim()).map((s) => createStep(s));
+          return { goals: [...prev.goals, created] };
+        });
+        return created;
+      },
+
+      addGoalStep(goalId, text) {
+        if (!text || !text.trim()) return;
+        patch((prev) => ({
+          goals: prev.goals.map((g) => (g.id === goalId ? { ...g, steps: [...g.steps, createStep(text)] } : g)),
+        }));
+      },
+
+      toggleGoalStep(goalId, stepId) {
+        patch((prev) => ({
+          goals: prev.goals.map((g) =>
+            g.id !== goalId
+              ? g
+              : {
+                  ...g,
+                  steps: g.steps.map((s) =>
+                    s.id === stepId ? { ...s, done: !s.done, doneAt: !s.done ? new Date().toISOString() : null } : s
+                  ),
+                }
+          ),
+        }));
+      },
+
+      setActiveGoal(goalId) {
+        patch((prev) => ({
+          goals: prev.goals.map((g) => ({ ...g, active: g.id === goalId })),
+        }));
+      },
+
+      removeGoal(goalId) {
+        patch((prev) => {
+          const remaining = prev.goals.filter((g) => g.id !== goalId);
+          const removedWasActive = prev.goals.find((g) => g.id === goalId)?.active;
+          if (removedWasActive && remaining.length > 0 && !remaining.some((g) => g.active)) {
+            remaining[0] = { ...remaining[0], active: true };
+          }
+          return { goals: remaining };
+        });
       },
 
       startFocusSession(durationMinutes) {
@@ -225,15 +285,24 @@ export function AppStateProvider({ children }) {
         }));
       },
 
-      completeOnboarding({ estimateMinutesPerDay, timeBackGoals, dailyTargetMinutes }) {
-        patch((prev) => ({
-          onboardingComplete: true,
-          onboardingEstimateMinutesPerDay: estimateMinutesPerDay,
-          timeBackGoals,
-          // Recorded at EPOCH_DATE, not today — see the comment on
-          // EPOCH_DATE in lib/reclaim.js for why this matters.
-          targetHistory: addTargetChange(prev.targetHistory, EPOCH_DATE, dailyTargetMinutes),
-        }));
+      completeOnboarding({ estimateMinutesPerDay, timeBackGoals, dailyTargetMinutes, goal }) {
+        patch((prev) => {
+          const goals = [...prev.goals];
+          if (goal && goal.title && goal.title.trim()) {
+            const created = createGoal({ title: goal.title, category: goal.category, why: goal.why, isActive: true });
+            created.steps = (goal.steps || []).filter((s) => s && s.trim()).map((s) => createStep(s));
+            goals.push(created);
+          }
+          return {
+            onboardingComplete: true,
+            onboardingEstimateMinutesPerDay: estimateMinutesPerDay,
+            timeBackGoals,
+            goals,
+            // Recorded at EPOCH_DATE, not today — see the comment on
+            // EPOCH_DATE in lib/reclaim.js for why this matters.
+            targetHistory: addTargetChange(prev.targetHistory, EPOCH_DATE, dailyTargetMinutes),
+          };
+        });
       },
 
       resetAllData() {

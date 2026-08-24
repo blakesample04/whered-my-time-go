@@ -2,20 +2,24 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { useCelebration } from "../state/CelebrationContext";
-import { formatHoursMinutes } from "../lib/timeTranslator";
 import { dailyReclaimedMinutes } from "../lib/reclaim";
 import { homeMessage } from "../lib/messages";
+import { reasonIcon } from "../state/defaultState";
 import ProgressRing from "../components/ProgressRing";
 import ProgressBar from "../components/ProgressBar";
 import AnimatedMinutes from "../components/AnimatedMinutes";
 import ReflectionPrompt from "../components/ReflectionPrompt";
+import EmptyState from "../components/EmptyState";
 
 const REFLECTION_TRIGGER_MINUTES = 30;
 
 export default function Home() {
   const { state, derived, actions } = useAppState();
   const { celebrate } = useCelebration();
-  const { timeBank, streak, level, todaysTarget, hasLoggedToday, todaysChallenge, nowIso, reminders } = derived;
+  const {
+    timeBank, streak, level, todaysTarget, hasLoggedToday, todaysChallenge, nowIso, reminders,
+    activeGoal, activeGoalProgress, activeGoalNextStep,
+  } = derived;
 
   const todayReclaimed = hasLoggedToday
     ? dailyReclaimedMinutes(nowIso, state.usageLog, state.targetHistory) || 0
@@ -41,8 +45,6 @@ export default function Home() {
     streak,
   });
 
-  const ringProgress = todaysTarget ? Math.min(1, todayReclaimed / todaysTarget) : 0;
-
   function completeChallenge() {
     actions.completeTodayChallenge();
     if (todaysChallenge.minutesReward > 0) {
@@ -50,6 +52,12 @@ export default function Home() {
     } else {
       celebrate({ icon: "🎯", title: "Challenge complete", subtitle: "Nice — that's today handled." });
     }
+  }
+
+  function completeNextStep() {
+    if (!activeGoal || !activeGoalNextStep) return;
+    actions.toggleGoalStep(activeGoal.id, activeGoalNextStep.id);
+    celebrate({ icon: "✓", title: "Step complete", subtitle: activeGoalNextStep.text });
   }
 
   return (
@@ -61,37 +69,75 @@ export default function Home() {
         </span>
       </header>
 
-      <section className="hero-card">
-        <div className="hero-top">
-          <ProgressRing progress={ringProgress} size={176} stroke={13}>
-            <div className="hero-ring-stack">
-              <div className="hero-eyebrow">Time Reclaimed</div>
-              <AnimatedMinutes minutes={timeBank.week} as="div" className="hero-value" />
+      <section className="goal-hero">
+        {activeGoal ? (
+          <>
+            <div className="goal-hero-eyebrow">
+              <span aria-hidden="true">{reasonIcon(activeGoal.category)}</span> Your Goal
             </div>
-          </ProgressRing>
-        </div>
+            <div className="goal-hero-title">{activeGoal.title}</div>
 
-        <div style={{ textAlign: "center", marginTop: 14 }}>
-          {hasLoggedToday && todayReclaimed > 0 && (
-            <div className="hero-delta">+{formatHoursMinutes(todayReclaimed)} today</div>
-          )}
-          {todaysTarget != null && (
-            <div className="hero-goal-label" style={{ marginTop: 6 }}>
-              Goal · {formatHoursMinutes(todaysTarget)}/day
+            <div className="goal-progress-wrap">
+              <ProgressRing progress={activeGoalProgress.fraction} size={140} stroke={11} gradientId="goalRing">
+                <span className="num" style={{ fontSize: 20, color: "var(--text-h)" }}>
+                  {activeGoalProgress.done}/{activeGoalProgress.total || 0}
+                </span>
+              </ProgressRing>
             </div>
-          )}
-        </div>
+            <div className="goal-progress-caption">
+              {activeGoalProgress.total === 0
+                ? "No steps yet — add some on the Progress tab"
+                : activeGoalNextStep
+                ? `${activeGoalProgress.done} of ${activeGoalProgress.total} steps complete`
+                : "All steps complete 🎉"}
+            </div>
 
-        <div className="hero-message">
-          <div className="headline">{msg.headline}</div>
-          {msg.sub && <div className="sub">{msg.sub}</div>}
-          {!hasLoggedToday && (
-            <Link to="/settings" className="link-cta primary" style={{ marginTop: 12, textDecoration: "none" }}>
-              Log today's time
-            </Link>
-          )}
-        </div>
+            {activeGoalNextStep && (
+              <div className="goal-next-step">
+                <button className="goal-step-check" onClick={completeNextStep} aria-label="Mark this step complete">✓</button>
+                <div>
+                  <div className="label">Next step</div>
+                  <div className="text">{activeGoalNextStep.text}</div>
+                </div>
+              </div>
+            )}
+            {!activeGoalNextStep && activeGoalProgress.total > 0 && (
+              <div className="goal-next-step">
+                <div className="text">Add another step on the Progress tab, or start a new goal.</div>
+              </div>
+            )}
+          </>
+        ) : (
+          <EmptyState
+            icon="🎯"
+            title="Set a goal to get started"
+            body="This app works best when it's helping you get somewhere specific — add one on the Progress tab."
+            action={
+              <Link to="/progress" className="primary" style={{ display: "inline-block", padding: "10px 20px", borderRadius: 10, textDecoration: "none" }}>
+                Set a goal
+              </Link>
+            }
+          />
+        )}
       </section>
+
+      <div className="fuel-strip">
+        🔋 <AnimatedMinutes minutes={timeBank.today} /> reclaimed today · <AnimatedMinutes minutes={timeBank.week} /> this week
+      </div>
+
+      {(hasLoggedToday || msg) && (
+        <section className="card">
+          <div className="hero-message" style={{ marginTop: 0, paddingTop: 0, borderTop: "none" }}>
+            <div className="headline">{msg.headline}</div>
+            {msg.sub && <div className="sub">{msg.sub}</div>}
+            {!hasLoggedToday && (
+              <Link to="/settings" className="link-cta primary" style={{ marginTop: 12, textDecoration: "none" }}>
+                Log today's time
+              </Link>
+            )}
+          </div>
+        </section>
+      )}
 
       <section className="card">
         <div style={{ display: "flex", gap: 20 }}>

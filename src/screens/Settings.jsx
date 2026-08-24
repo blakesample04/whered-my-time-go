@@ -4,7 +4,6 @@ import { todayISO } from "../lib/dateUtils";
 import { formatHoursMinutes, headlineStat } from "../lib/timeTranslator";
 import { computeRecoveredMinutes, totalMinutesForApp } from "../lib/goals";
 import { parseCSV, splitHeaderAndRows, guessColumnMapping, normalizeRows } from "../lib/csvImport";
-import { TIME_BACK_REASONS } from "../state/defaultState";
 import Toggle from "../components/Toggle";
 import EmptyState from "../components/EmptyState";
 
@@ -94,7 +93,7 @@ export default function Settings() {
     <div className="screen">
       <div className="screen-title">
         <h1>Settings</h1>
-        <p>Your targets, your data, your goals — all changeable, nothing lost.</p>
+        <p>Your targets and data — all changeable, nothing lost. Manage your Goal on the Progress tab.</p>
       </div>
 
       <section className="card">
@@ -112,22 +111,6 @@ export default function Settings() {
         {derived.todaysTarget != null && (
           <p className="sub" style={{ marginBottom: 0 }}>Current: {formatHoursMinutes(derived.todaysTarget)}/day</p>
         )}
-      </section>
-
-      <section className="card">
-        <h2>What you want your time back for</h2>
-        <p className="sub">Used to frame your reclaimed time throughout the app.</p>
-        <div className="onboarding-goals" style={{ justifyContent: "flex-start" }}>
-          {TIME_BACK_REASONS.map((g) => (
-            <button
-              key={g.id}
-              className={"chip-toggle" + (state.timeBackGoals.includes(g.id) ? " selected" : "")}
-              onClick={() => actions.toggleTimeBackGoal(g.id)}
-            >
-              {g.label}
-            </button>
-          ))}
-        </div>
       </section>
 
       <section className="card">
@@ -201,18 +184,18 @@ export default function Settings() {
       </section>
 
       <section className="card">
-        <h2>App goals (optional)</h2>
-        <p className="sub">A separate, optional per-app target — independent of your overall daily target above.</p>
+        <h2>App limits (optional)</h2>
+        <p className="sub">A separate, optional per-app limit — independent of your overall daily target above. Different from your Goal on the Progress tab.</p>
         <form onSubmit={handleAddGoal}>
           <div className="form-row">
             <input type="text" placeholder="App name" value={goalForm.appName} onChange={(e) => setGoalForm({ ...goalForm, appName: e.target.value })} />
             <input type="number" min="1" placeholder="Used to spend (min/day)" value={goalForm.baselineMinutesPerDay} onChange={(e) => setGoalForm({ ...goalForm, baselineMinutesPerDay: e.target.value })} />
-            <input type="number" min="1" placeholder="New goal (min/day)" value={goalForm.dailyLimitMinutes} onChange={(e) => setGoalForm({ ...goalForm, dailyLimitMinutes: e.target.value })} />
+            <input type="number" min="1" placeholder="New limit (min/day)" value={goalForm.dailyLimitMinutes} onChange={(e) => setGoalForm({ ...goalForm, dailyLimitMinutes: e.target.value })} />
             <button className="primary" type="submit">Add</button>
           </div>
         </form>
         {state.appGoals.length === 0 && (
-          <EmptyState icon="🧩" title="No app goals yet" body="Add one above if there's a specific app you want to rein in." />
+          <EmptyState icon="🧩" title="No app limits yet" body="Add one above if there's a specific app you want to rein in." />
         )}
         {state.appGoals.map((goal) => {
           const recovered = computeRecoveredMinutes(goal, state.usageLog);
@@ -220,7 +203,7 @@ export default function Settings() {
             <div className="goal-block" key={goal.id}>
               <h3>{goal.appName}</h3>
               <div className="goal-meta">
-                Baseline {formatHoursMinutes(goal.baselineMinutesPerDay)}/day · Goal {formatHoursMinutes(goal.dailyLimitMinutes)}/day
+                Baseline {formatHoursMinutes(goal.baselineMinutesPerDay)}/day · Limit {formatHoursMinutes(goal.dailyLimitMinutes)}/day
               </div>
               <div className="recovered">
                 <div className="amount">{formatHoursMinutes(recovered)} recovered</div>
@@ -248,7 +231,7 @@ export default function Settings() {
 
       <section className="card">
         <h2>Reset</h2>
-        <p className="sub">Clears everything — usage, targets, Time Bank, XP, streaks, achievements. Can't be undone.</p>
+        <p className="sub">Clears everything — your goal, usage, targets, Time Bank, XP, streaks, achievements. Can't be undone.</p>
         <button
           className="secondary"
           onClick={() => {

@@ -12,6 +12,7 @@ export const STORAGE_KEYS = {
   usageLog: "usageLog",
   targetHistory: "targetHistory",
   appGoals: "appGoals",
+  goals: "goals",
   focusSessions: "focusSessions",
   activeFocusSession: "activeFocusSession",
   challengeCompletions: "challengeCompletions",
@@ -27,6 +28,7 @@ export const DEFAULT_STATE = {
   usageLog: [], // [{ date, appName, minutes }]
   targetHistory: [], // [{ date, minutesPerDay }]
   appGoals: [], // existing per-app goal objects from lib/goals.js
+  goals: [], // [{ id, title, category, why, active, createdAt, steps: [...] }] — see lib/purpose.js
   focusSessions: [], // [{ id, date, minutes, startedAt, completedAt }]
   activeFocusSession: null, // { id, durationMinutes, startedAt } | null
   challengeCompletions: [], // [{ id, date, challengeId, minutes, xp, completedAt }]
@@ -35,15 +37,26 @@ export const DEFAULT_STATE = {
   notificationsEnabled: true,
 };
 
+// Used both as the onboarding "what do you want your time back for" picks
+// (legacy field, still stored) and as the category every specific Goal now
+// carries, for icon/theming and to pick a starter-step template.
 export const TIME_BACK_REASONS = [
-  { id: "learn", label: "Learn something" },
-  { id: "school", label: "School" },
-  { id: "exercise", label: "Exercise" },
-  { id: "create", label: "Create" },
-  { id: "work", label: "Work" },
-  { id: "people", label: "Spend time with people" },
-  { id: "outside", label: "Get outside" },
-  { id: "rest", label: "Rest" },
-  { id: "project", label: "Personal project" },
-  { id: "other", label: "Something else" },
+  { id: "learn", label: "Learn something", icon: "📚" },
+  { id: "school", label: "School", icon: "🎓" },
+  { id: "exercise", label: "Exercise", icon: "🏋" },
+  { id: "create", label: "Create", icon: "🎨" },
+  { id: "work", label: "Work", icon: "💼" },
+  { id: "people", label: "Spend time with people", icon: "🤝" },
+  { id: "outside", label: "Get outside", icon: "🌳" },
+  { id: "rest", label: "Rest", icon: "🌙" },
+  { id: "project", label: "Personal project", icon: "🛠" },
+  { id: "other", label: "Something else", icon: "✦" },
 ];
+
+export function reasonIcon(categoryId) {
+  return TIME_BACK_REASONS.find((r) => r.id === categoryId)?.icon || "✦";
+}
+
+export function reasonLabel(categoryId) {
+  return TIME_BACK_REASONS.find((r) => r.id === categoryId)?.label || "Goal";
+}

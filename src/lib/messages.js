@@ -24,9 +24,13 @@ export function homeMessage({ hasLoggedToday, reclaimedToday, usageToday, target
   }
 
   if (reclaimedToday > 0) {
+    // Deliberately says "target," never "goal" — "goal" is reserved for the
+    // thing the user is actually working toward (lib/purpose.js), not the
+    // daily screen-time number. Conflating the two would make this line
+    // read as if it were commenting on their real goal.
     const lines = [`You reclaimed ${formatHoursMinutes(reclaimedToday)} today.`];
-    if (usageToday <= target * 0.7) lines.push("You're well ahead of your goal.");
-    else lines.push("You're ahead of your goal.");
+    if (usageToday <= target * 0.7) lines.push("You're well under your target.");
+    else lines.push("You're under your target.");
     if (weekReclaimed > 0) lines.push(`You've taken back ${formatHoursMinutes(weekReclaimed)} this week.`);
     return { headline: lines[0], sub: lines.slice(1).join(" ") };
   }

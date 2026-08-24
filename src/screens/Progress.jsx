@@ -1,12 +1,17 @@
 import { useState } from "react";
 import { useAppState } from "../state/AppStateContext";
+import { useCelebration } from "../state/CelebrationContext";
 import { formatHoursMinutes } from "../lib/timeTranslator";
 import { dailyReclaimedMinutes, trackedDates } from "../lib/reclaim";
 import { addDays, parseISODate } from "../lib/dateUtils";
+import { TIME_BACK_REASONS, reasonIcon } from "../state/defaultState";
+import { templateStepsFor } from "../lib/goalTemplates";
 import ProgressBar from "../components/ProgressBar";
 import ProgressRing from "../components/ProgressRing";
 import AnimatedMinutes from "../components/AnimatedMinutes";
 import ShareModal from "../components/ShareModal";
+import EmptyState from "../components/EmptyState";
+import Modal from "../components/Modal";
 
 const ACHIEVEMENT_ICONS = {
   first_step: "👣",
@@ -19,9 +24,15 @@ const ACHIEVEMENT_ICONS = {
 };
 
 export default function Progress() {
-  const { state, derived } = useAppState();
-  const { timeBank, streak, level, achievements, nowIso } = derived;
+  const { state, derived, actions } = useAppState();
+  const { celebrate } = useCelebration();
+  const { timeBank, streak, level, achievements, nowIso, activeGoal, activeGoalProgress } = derived;
   const [shareOpen, setShareOpen] = useState(false);
+
+  const [newStepText, setNewStepText] = useState("");
+  const [newGoalOpen, setNewGoalOpen] = useState(false);
+  const [newGoalTitle, setNewGoalTitle] = useState("");
+  const [newGoalCategory, setNewGoalCategory] = useState(null);
 
   const unlockedCount = achievements.filter((a) => a.unlocked).length;
 
@@ -33,6 +44,27 @@ export default function Progress() {
   const last7Values = last7.map((d) => (tracked.has(d) ? dailyReclaimedMinutes(d, state.usageLog, state.targetHistory) || 0 : 0));
   const maxVal = Math.max(1, ...last7Values);
 
+  function toggleStep(stepId) {
+    if (!activeGoal) return;
+    const step = activeGoal.steps.find((s) => s.id === stepId);
+    actions.toggleGoalStep(activeGoal.id, stepId);
+    if (step && !step.done) celebrate({ icon: "✓", title: "Step complete", subtitle: step.text });
+  }
+
+  function addStep() {
+    if (!activeGoal || !newStepText.trim()) return;
+    actions.addGoalStep(activeGoal.id, newStepText);
+    setNewStepText("");
+  }
+
+  function createGoal() {
+    if (!newGoalTitle.trim() || !newGoalCategory) return;
+    actions.addGoal({ title: newGoalTitle, category: newGoalCategory, initialSteps: templateStepsFor(newGoalCategory) });
+    setNewGoalOpen(false);
+    setNewGoalTitle("");
+    setNewGoalCategory(null);
+  }
+
   return (
     <div className="screen">
       <div className="screen-title">
@@ -40,9 +72,72 @@ export default function Progress() {
         <p>Not perfection — intention. Here's where that's taken you.</p>
       </div>
 
+      <section className="card">
+        <h2>Your Goal{state.goals.length > 1 ? "s" : ""}</h2>
+
+        {state.goals.length > 1 && (
+          <div className="goal-switch-row">
+            {state.goals.map((g) => (
+              <button
+                key={g.id}
+                className={"goal-switch-chip" + (activeGoal && g.id === activeGoal.id ? " active" : "")}
+                onClick={() => actions.setActiveGoal(g.id)}
+              >
+                {reasonIcon(g.category)} {g.title}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {activeGoal ? (
+          <>
+            <p className="sub">
+              {activeGoalProgress.total === 0
+                ? "No steps yet — add one below."
+                : `${activeGoalProgress.done} of ${activeGoalProgress.total} steps complete`}
+            </p>
+            <div className="step-list">
+              {activeGoal.steps.map((s) => (
+                <div className={"step-row" + (s.done ? " done" : "")} key={s.id}>
+                  <div className="step-row-left">
+                    <button
+                      className={"step-toggle" + (s.done ? " checked" : "")}
+                      onClick={() => toggleStep(s.id)}
+                      aria-label={s.done ? "Mark step not done" : "Mark step done"}
+                    >
+                      {s.done ? "✓" : ""}
+                    </button>
+                    <span className="step-text">{s.text}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="form-row" style={{ marginTop: 12 }}>
+              <input
+                type="text"
+                placeholder="Add a step"
+                value={newStepText}
+                onChange={(e) => setNewStepText(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addStep()}
+              />
+              <button className="secondary" onClick={addStep}>Add</button>
+            </div>
+          </>
+        ) : (
+          <EmptyState icon="🎯" title="No goal set yet" body="Add something you're working toward, and break it into steps." />
+        )}
+
+        <button className="link" style={{ marginTop: 14 }} onClick={() => setNewGoalOpen(true)}>
+          + Start a new goal
+        </button>
+      </section>
+
       <section className="card bank-hero">
         <div className="section-label">Time Bank</div>
         <AnimatedMinutes minutes={timeBank.allTime} as="div" className="value" />
+        <p className="sub" style={{ textAlign: "center", marginTop: 4, marginBottom: 0 }}>
+          fuel for {activeGoal ? `"${activeGoal.title}"` : "your goal"}
+        </p>
 
         <div className="mini-bars" aria-hidden="true">
           {last7Values.map((v, i) => (
@@ -137,6 +232,36 @@ export default function Progress() {
         shareText={`I've reclaimed ${formatHoursMinutes(timeBank.allTime)} of screen time with Where'd my time go?`}
         filename="time-bank"
       />
+
+      <Modal open={newGoalOpen} onClose={() => setNewGoalOpen(false)} title="New goal">
+        <div className="form-row">
+          <input
+            type="text"
+            placeholder="What do you want to work toward?"
+            value={newGoalTitle}
+            onChange={(e) => setNewGoalTitle(e.target.value)}
+          />
+        </div>
+        <div className="onboarding-goals" style={{ justifyContent: "flex-start", marginBottom: 16, marginTop: 4 }}>
+          {TIME_BACK_REASONS.map((r) => (
+            <button
+              key={r.id}
+              className={"chip-toggle" + (newGoalCategory === r.id ? " selected" : "")}
+              onClick={() => setNewGoalCategory(r.id)}
+            >
+              {r.icon} {r.label}
+            </button>
+          ))}
+        </div>
+        <button
+          className="primary"
+          style={{ width: "100%" }}
+          disabled={!newGoalTitle.trim() || !newGoalCategory}
+          onClick={createGoal}
+        >
+          Create goal
+        </button>
+      </Modal>
     </div>
   );
 }
