@@ -10,7 +10,7 @@
 // generic nudge rather than pretending to be personalized expert advice for
 // an arbitrary goal.
 
-export function createGoal({ title, category, why, isActive }) {
+export function createGoal({ title, category, why, isActive, weeklyTargetMinutes, targetDate }) {
   return {
     id: `goal:${Date.now()}`,
     title: title.trim(),
@@ -18,6 +18,11 @@ export function createGoal({ title, category, why, isActive }) {
     why: (why || "").trim(),
     active: !!isActive,
     createdAt: new Date().toISOString(),
+    // Both optional and additive — older goals simply have these as null,
+    // and every screen that reads them treats null as "not set" rather
+    // than assuming a value.
+    weeklyTargetMinutes: weeklyTargetMinutes || null,
+    targetDate: targetDate || null,
     steps: [],
   };
 }
@@ -40,4 +45,51 @@ export function nextStep(goal) {
 export function activeGoalOf(goals) {
   if (!goals || goals.length === 0) return null;
   return goals.find((g) => g.active) || goals[0];
+}
+
+// --- time-vs-progress: how much real time has actually gone into a goal ---
+
+import { startOfWeek, addDays } from "./dateUtils";
+
+export function goalMinutesInvested(goal, focusSessions) {
+  if (!goal) return 0;
+  return focusSessions.filter((s) => s.goalId === goal.id).reduce((sum, s) => sum + s.minutes, 0);
+}
+
+export function goalMinutesThisWeek(goal, focusSessions, todayIso) {
+  if (!goal) return 0;
+  const weekStart = startOfWeek(todayIso);
+  const weekEnd = addDays(weekStart, 6);
+  return focusSessions
+    .filter((s) => s.goalId === goal.id && s.date >= weekStart && s.date <= weekEnd)
+    .reduce((sum, s) => sum + s.minutes, 0);
+}
+
+const DEFAULT_STEP_MINUTES = 45; // fallback effort-per-step assumption, used only until there's real pace data
+
+// A rough, clearly-labeled estimate — never presented as a guarantee.
+// Prefers actual completion pace (steps done per week so far) once there's
+// enough history; falls back to a generic effort-per-step assumption
+// against the weekly target for a brand-new goal.
+export function estimateCompletionDate(goal, focusSessions, todayIso) {
+  if (!goal) return null;
+  const { done, total } = goalProgress(goal);
+  const remainingSteps = total - done;
+  if (remainingSteps <= 0) return null; // already done, or no steps to estimate against
+
+  const weeksSinceCreated = Math.max(1, Math.round((new Date(todayIso) - new Date(goal.createdAt)) / (7 * 86400000)));
+  const paceStepsPerWeek = weeksSinceCreated >= 1 && done > 0 ? done / weeksSinceCreated : null;
+
+  let weeksNeeded;
+  if (paceStepsPerWeek && paceStepsPerWeek > 0) {
+    weeksNeeded = remainingSteps / paceStepsPerWeek;
+  } else if (goal.weeklyTargetMinutes) {
+    const sessionsPerWeek = goal.weeklyTargetMinutes / DEFAULT_STEP_MINUTES;
+    if (sessionsPerWeek <= 0) return null;
+    weeksNeeded = remainingSteps / sessionsPerWeek;
+  } else {
+    return null; // not enough information to estimate at all yet
+  }
+
+  return addDays(todayIso, Math.max(7, Math.round(weeksNeeded * 7)));
 }

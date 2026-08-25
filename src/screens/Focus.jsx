@@ -6,15 +6,33 @@ import ProgressRing from "../components/ProgressRing";
 
 const PRESETS = [10, 25, 45];
 
+function findStep(goal, stepId) {
+  return goal?.steps.find((s) => s.id === stepId) || null;
+}
+
 export default function Focus() {
-  const { state, actions } = useAppState();
+  const { state, derived, actions } = useAppState();
   const { celebrate } = useCelebration();
   const active = state.activeFocusSession;
 
   const [customMinutes, setCustomMinutes] = useState(15);
-  const [justCompleted, setJustCompleted] = useState(null);
+  const [justCompleted, setJustCompleted] = useState(null); // { minutes, stepCompletedText } | null
   const [tick, setTick] = useState(0);
   const completingRef = useRef(false);
+
+  // What we'll attach the NEXT session to, if the user hasn't started one
+  // yet — set by Home's "Start Goal Session" (or onboarding's finish CTA)
+  // via actions.setPendingSessionContext before navigating here.
+  const pendingGoal = derived.pendingSessionContext
+    ? state.goals.find((g) => g.id === derived.pendingSessionContext.goalId)
+    : null;
+  const pendingStep = pendingGoal ? findStep(pendingGoal, derived.pendingSessionContext.stepId) : null;
+
+  // Once a session is actually running, its own goalId/stepId (persisted
+  // on activeFocusSession) is the source of truth — not the pending intent,
+  // which may have already been superseded.
+  const activeGoal = active?.goalId ? state.goals.find((g) => g.id === active.goalId) : null;
+  const activeStep = activeGoal ? findStep(activeGoal, active.stepId) : null;
 
   useEffect(() => {
     if (!active) return undefined;
@@ -32,9 +50,13 @@ export default function Focus() {
     if (active && remainingMs <= 0 && !completingRef.current) {
       completingRef.current = true;
       const minutes = active.durationMinutes;
-      actions.completeActiveFocusSession();
-      setJustCompleted(minutes);
-      celebrate({ icon: "⏳", title: `${formatHoursMinutes(minutes)} reclaimed`, subtitle: "Straight into your Time Bank." });
+      const result = actions.completeActiveFocusSession();
+      setJustCompleted({ minutes, stepCompletedText: result?.stepCompletedText || null });
+      if (result?.stepCompletedText) {
+        celebrate({ icon: "✓", title: "Step complete", subtitle: result.stepCompletedText });
+      } else {
+        celebrate({ icon: "⏳", title: `${formatHoursMinutes(minutes)} reclaimed`, subtitle: "Straight into your Time Bank." });
+      }
     }
     if (!active) completingRef.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -42,7 +64,9 @@ export default function Focus() {
 
   function start(minutes) {
     setJustCompleted(null);
-    actions.startFocusSession(minutes);
+    const ctx = pendingGoal && pendingStep ? { goalId: pendingGoal.id, stepId: pendingStep.id } : null;
+    actions.startFocusSession(minutes, ctx);
+    actions.clearPendingSessionContext();
   }
 
   function mm(seconds) {
@@ -62,14 +86,24 @@ export default function Focus() {
       {justCompleted != null && !active && (
         <section className="card reclaim-result">
           <div className="icon" aria-hidden="true">✓</div>
-          <div className="amount num">{formatHoursMinutes(justCompleted)} reclaimed</div>
-          <p className="sub" style={{ marginBottom: 0, marginTop: 4 }}>Nice work. It's in your Time Bank now.</p>
+          <div className="amount num">{formatHoursMinutes(justCompleted.minutes)} reclaimed</div>
+          <p className="sub" style={{ marginBottom: 0, marginTop: 4 }}>
+            {justCompleted.stepCompletedText
+              ? `"${justCompleted.stepCompletedText}" is done. It's in your Time Bank too.`
+              : "Nice work. It's in your Time Bank now."}
+          </p>
         </section>
       )}
 
       <section className="card timer-stage">
         {active ? (
           <>
+            {activeGoal && (
+              <div className="session-goal-badge">
+                <div className="k">Working on</div>
+                <div className="v">{activeGoal.title}{activeStep ? ` — ${activeStep.text}` : ""}</div>
+              </div>
+            )}
             <ProgressRing progress={progress} size={230} stroke={14} gradientId="focusRing">
               <span className="timer-time num">{mm(remainingSeconds)}</span>
             </ProgressRing>
@@ -80,6 +114,12 @@ export default function Focus() {
           </>
         ) : (
           <>
+            {pendingGoal && pendingStep && (
+              <div className="session-goal-badge">
+                <div className="k">Starting a goal session</div>
+                <div className="v">{pendingGoal.title} — {pendingStep.text}</div>
+              </div>
+            )}
             <p className="sub" style={{ marginBottom: 16 }}>Choose a length:</p>
             <div className="duration-picker">
               {PRESETS.map((m) => (

@@ -1,24 +1,37 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { useCelebration } from "../state/CelebrationContext";
 import { dailyReclaimedMinutes } from "../lib/reclaim";
 import { homeMessage } from "../lib/messages";
+import { formatHoursMinutes } from "../lib/timeTranslator";
 import { reasonIcon } from "../state/defaultState";
+import { isFeatureUnlocked } from "../lib/premium";
 import ProgressRing from "../components/ProgressRing";
 import ProgressBar from "../components/ProgressBar";
 import AnimatedMinutes from "../components/AnimatedMinutes";
 import ReflectionPrompt from "../components/ReflectionPrompt";
 import EmptyState from "../components/EmptyState";
+import PremiumGate from "../components/PremiumGate";
 
 const REFLECTION_TRIGGER_MINUTES = 30;
+
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 5) return "Still up?";
+  if (h < 12) return "Good morning.";
+  if (h < 18) return "Good afternoon.";
+  return "Good evening.";
+}
 
 export default function Home() {
   const { state, derived, actions } = useAppState();
   const { celebrate } = useCelebration();
+  const navigate = useNavigate();
   const {
     timeBank, streak, level, todaysTarget, hasLoggedToday, todaysChallenge, nowIso, reminders,
     activeGoal, activeGoalProgress, activeGoalNextStep,
+    discretionaryRemainingToday, priorities, yesterdayEntertainmentMinutes, insteadSuggestions,
   } = derived;
 
   const todayReclaimed = hasLoggedToday
@@ -27,6 +40,7 @@ export default function Home() {
 
   const [reflectionOpen, setReflectionOpen] = useState(false);
   const [reflectionDismissedForToday, setReflectionDismissedForToday] = useState(false);
+  const [nudgeDismissed, setNudgeDismissed] = useState(false);
 
   const alreadyReflectedToday = state.reflections.some((r) => r.date === nowIso);
 
@@ -60,6 +74,24 @@ export default function Home() {
     celebrate({ icon: "✓", title: "Step complete", subtitle: activeGoalNextStep.text });
   }
 
+  function startGoalSession() {
+    if (!activeGoal || !activeGoalNextStep) return;
+    actions.setPendingSessionContext({ goalId: activeGoal.id, stepId: activeGoalNextStep.id });
+    navigate("/focus");
+  }
+
+  // Gentle accountability, folded together with "Recover My Time": only
+  // shown when there's an actual next step, nobody's worked on this goal
+  // yet today, and it hasn't been dismissed this visit. Never punitive —
+  // "haven't started" reads as a fact, not a failure, and dismissing just
+  // moves on rather than nagging again.
+  const workedOnGoalToday = activeGoal
+    ? state.focusSessions.some((s) => s.date === nowIso && s.goalId === activeGoal.id)
+    : false;
+  const showNudge = activeGoal && activeGoalNextStep && !workedOnGoalToday && !nudgeDismissed;
+
+  const insteadUnlocked = isFeatureUnlocked("instead", state.isPremium);
+
   return (
     <div className="screen">
       <header className="top">
@@ -68,6 +100,40 @@ export default function Home() {
           Where'd my time go?
         </span>
       </header>
+
+      <p className="greeting">{greeting()}</p>
+
+      {showNudge && (
+        <div className="accountability-card">
+          <div className="text">
+            {discretionaryRemainingToday > 0
+              ? `You have ${formatHoursMinutes(discretionaryRemainingToday)} left today. "${activeGoal.title}" hasn't had a session yet — want to use some of it?`
+              : `You planned to work on "${activeGoal.title}" today — no session yet.`}
+          </div>
+          <div className="accountability-actions">
+            <button className="secondary" onClick={() => setNudgeDismissed(true)}>Tomorrow</button>
+            <button className="primary" onClick={startGoalSession}>Start now</button>
+          </div>
+        </div>
+      )}
+
+      {state.timeBudget && (
+        <section className="card discretionary-hero">
+          <div className="section-label">Today's discretionary time</div>
+          <div className="value num">{formatHoursMinutes(discretionaryRemainingToday)}</div>
+          <div className="caption">left to spend how you choose</div>
+          {priorities.length > 0 && (
+            <div className="priorities-list">
+              {priorities.map((p) => (
+                <div className="priority-row" key={p.id}>
+                  <span className="name">{p.icon} {p.label}</span>
+                  <span className="amount">{formatHoursMinutes(p.remaining)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="goal-hero">
         {activeGoal ? (
@@ -95,9 +161,12 @@ export default function Home() {
             {activeGoalNextStep && (
               <div className="goal-next-step">
                 <button className="goal-step-check" onClick={completeNextStep} aria-label="Mark this step complete">✓</button>
-                <div>
+                <div style={{ flex: 1 }}>
                   <div className="label">Next step</div>
                   <div className="text">{activeGoalNextStep.text}</div>
+                  <button className="link" style={{ marginTop: 6, fontSize: 12.5 }} onClick={startGoalSession}>
+                    Start Goal Session →
+                  </button>
                 </div>
               </div>
             )}
@@ -137,6 +206,20 @@ export default function Home() {
             )}
           </div>
         </section>
+      )}
+
+      {yesterdayEntertainmentMinutes >= 10 && (
+        <PremiumGate unlocked={insteadUnlocked} label="See what that time could become — Premium">
+          <section className="card">
+            <h2>What could you have done instead?</h2>
+            <p className="sub">
+              You spent {formatHoursMinutes(yesterdayEntertainmentMinutes)} on entertainment yesterday. With that time, you could have...
+            </p>
+            <ul className="instead-list">
+              {insteadSuggestions.map((s) => <li key={s}>{s}</li>)}
+            </ul>
+          </section>
+        </PremiumGate>
       )}
 
       <section className="card">

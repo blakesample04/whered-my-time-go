@@ -6,7 +6,7 @@ import { projectAnnualHours } from "../lib/reclaim";
 import { formatHoursMinutes } from "../lib/timeTranslator";
 import { templateStepsFor } from "../lib/goalTemplates";
 
-const STEP_COUNT = 7;
+const STEP_COUNT = 8;
 
 export default function Onboarding() {
   const { actions } = useAppState();
@@ -17,6 +17,8 @@ export default function Onboarding() {
   const [goalTitle, setGoalTitle] = useState("");
   const [goalCategory, setGoalCategory] = useState(null);
   const [goalWhy, setGoalWhy] = useState("");
+  const [weeklyTargetMinutes, setWeeklyTargetMinutes] = useState(180);
+  const [targetDate, setTargetDate] = useState("");
   const [steps, setSteps] = useState([]);
   const [stepsSeeded, setStepsSeeded] = useState(false);
   const [newStepText, setNewStepText] = useState("");
@@ -32,7 +34,7 @@ export default function Onboarding() {
   // Seed suggested steps once, the first time we land on the steps screen —
   // after that, it's the user's own edited list, not the template.
   useEffect(() => {
-    if (step === 2 && !stepsSeeded) {
+    if (step === 3 && !stepsSeeded) {
       setSteps(templateStepsFor(goalCategory || "other"));
       setStepsSeeded(true);
     }
@@ -49,7 +51,7 @@ export default function Onboarding() {
   }
 
   function goNext() {
-    if (step === 3) setTargetMinutes(Math.max(30, estimateMinutes - 45));
+    if (step === 4) setTargetMinutes(Math.max(30, estimateMinutes - 45));
     setStep((s) => Math.min(STEP_COUNT - 1, s + 1));
   }
   function goBack() {
@@ -57,12 +59,22 @@ export default function Onboarding() {
   }
 
   function finish(goToFocus) {
-    actions.completeOnboarding({
+    const createdGoal = actions.completeOnboarding({
       estimateMinutesPerDay: estimateMinutes,
       timeBackGoals: goalCategory ? [goalCategory] : [],
       dailyTargetMinutes: targetMinutes,
-      goal: { title: goalTitle, category: goalCategory || "other", why: goalWhy, steps },
+      goal: {
+        title: goalTitle,
+        category: goalCategory || "other",
+        why: goalWhy,
+        steps,
+        weeklyTargetMinutes,
+        targetDate: targetDate || null,
+      },
     });
+    if (goToFocus && createdGoal && createdGoal.steps[0]) {
+      actions.setPendingSessionContext({ goalId: createdGoal.id, stepId: createdGoal.steps[0].id });
+    }
     navigate(goToFocus ? "/focus" : "/", { replace: true });
   }
 
@@ -127,6 +139,37 @@ export default function Onboarding() {
 
         {step === 2 && (
           <>
+            <div className="onb-icon">🗓</div>
+            <h1>How much time can you realistically give this each week?</h1>
+            <p className="lead">Be honest, not ambitious — a target you'll actually hit beats one you won't.</p>
+            <div className="onb-estimate-input">
+              <input
+                type="number"
+                min="15"
+                step="15"
+                value={weeklyTargetMinutes}
+                onChange={(e) => setWeeklyTargetMinutes(Number(e.target.value))}
+              />
+              <span className="unit">minutes a week</span>
+            </div>
+            <p className="lead" style={{ marginTop: 0, marginBottom: 8, fontSize: 13 }}>Target date (optional)</p>
+            <div className="form-row" style={{ justifyContent: "center", marginBottom: 16 }}>
+              <input
+                type="date"
+                value={targetDate}
+                onChange={(e) => setTargetDate(e.target.value)}
+                style={{ maxWidth: 200, textAlign: "center" }}
+              />
+            </div>
+            <div className="onboarding-nav row">
+              <button className="secondary" onClick={goBack}>Back</button>
+              <button className="primary" onClick={goNext}>Next</button>
+            </div>
+          </>
+        )}
+
+        {step === 3 && (
+          <>
             <h1>Let's rough out your first steps</h1>
             <p className="lead">
               A starting scaffold for "{goalTitle}" — keep what's useful, drop what isn't, add your own.
@@ -157,7 +200,7 @@ export default function Onboarding() {
           </>
         )}
 
-        {step === 3 && (
+        {step === 4 && (
           <>
             <div className="onb-icon">📱</div>
             <h1>How much time do you spend on your phone?</h1>
@@ -179,7 +222,7 @@ export default function Onboarding() {
           </>
         )}
 
-        {step === 4 && (
+        {step === 5 && (
           <>
             <div className="onb-icon">🧭</div>
             <h1>Set your daily target</h1>
@@ -204,7 +247,7 @@ export default function Onboarding() {
           </>
         )}
 
-        {step === 5 && (
+        {step === 6 && (
           <>
             <h1>Here's what that adds up to</h1>
             <div className="projection-box">
@@ -214,7 +257,8 @@ export default function Onboarding() {
               <div className="big num">~{annualHours} hours</div>
               <p>a year you could put toward "{goalTitle}."</p>
               <p className="estimate-note">
-                An estimate, not a promise — based on staying near today's target. Real life varies, and that's fine.
+                Your {formatHoursMinutes(weeklyTargetMinutes)}/week goal target is well within that. An estimate,
+                not a promise — real life varies, and that's fine.
               </p>
             </div>
             <div className="onboarding-nav row">
@@ -224,7 +268,7 @@ export default function Onboarding() {
           </>
         )}
 
-        {step === 6 && (
+        {step === 7 && (
           <>
             <div className="onb-icon">🌤</div>
             <h1>Let's take your first step toward "{goalTitle}."</h1>

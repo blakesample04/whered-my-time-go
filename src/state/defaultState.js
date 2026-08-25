@@ -19,6 +19,10 @@ export const STORAGE_KEYS = {
   reflections: "reflections",
   achievementsUnlocked: "achievementsUnlocked",
   notificationsEnabled: "notificationsEnabled",
+  timeBudget: "timeBudget",
+  appCategories: "appCategories",
+  isPremium: "isPremium",
+  recoveryPlan: "recoveryPlan",
 };
 
 export const DEFAULT_STATE = {
@@ -35,7 +39,39 @@ export const DEFAULT_STATE = {
   reflections: [], // [{ id, date, minutes, category, loggedAt }]
   achievementsUnlocked: [], // [{ id, unlockedAt }]
   notificationsEnabled: true,
+  // Daily minutes allocated per BUDGET_CATEGORIES id. Null until the user
+  // sets one up in Settings — budget features stay hidden/empty until then
+  // rather than assuming a default allocation nobody chose.
+  timeBudget: null, // { goals, school, health, social, entertainment, other }
+  appCategories: {}, // { [appName]: BUDGET_CATEGORIES id } — user-assigned in Settings
+  // Premium is a LOCAL TEST TOGGLE for now, not a real subscription — see
+  // Settings for the explicit "testing only" label. No payment processor is
+  // wired up yet; this only exists so premium-gated features can be built
+  // and verified ahead of adding real billing.
+  isPremium: false,
+  recoveryPlan: null, // { createdAt, weekStart, sessions: [{ date, minutes }] } | null
 };
+
+// Budget categories are deliberately a fixed, small set distinct from the
+// per-goal TIME_BACK_REASONS below — a goal's category answers "what kind of
+// goal is this," while a budget category answers "what bucket did this
+// minute of my day go into." "Goals" as a budget category is fed by actual
+// goal-linked focus session time, not by usage-log entries.
+export const BUDGET_CATEGORIES = [
+  { id: "goals", label: "Goals", icon: "🎯" },
+  { id: "school", label: "School", icon: "🎓" },
+  { id: "health", label: "Health", icon: "🏃" },
+  { id: "social", label: "Social", icon: "👥" },
+  { id: "entertainment", label: "Entertainment", icon: "🎮" },
+  { id: "other", label: "Other", icon: "✦" },
+];
+
+export function budgetCategoryLabel(id) {
+  return BUDGET_CATEGORIES.find((c) => c.id === id)?.label || "Other";
+}
+export function budgetCategoryIcon(id) {
+  return BUDGET_CATEGORIES.find((c) => c.id === id)?.icon || "✦";
+}
 
 // Used both as the onboarding "what do you want your time back for" picks
 // (legacy field, still stored) and as the category every specific Goal now

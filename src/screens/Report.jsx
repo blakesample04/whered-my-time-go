@@ -4,9 +4,12 @@ import { formatHoursMinutes } from "../lib/timeTranslator";
 import { REFLECTION_CATEGORIES, aggregateByCategory, categoryLabel } from "../lib/reflections";
 import { startOfMonth, addDays, dayOfWeekLabel, parseISODate, todayISO } from "../lib/dateUtils";
 import { dailyReclaimedMinutes, trackedDates } from "../lib/reclaim";
+import { budgetCategoryLabel } from "../state/defaultState";
+import { isFeatureUnlocked } from "../lib/premium";
 import ProgressBar from "../components/ProgressBar";
 import EmptyState from "../components/EmptyState";
 import ShareModal from "../components/ShareModal";
+import PremiumGate from "../components/PremiumGate";
 
 function biggestWin(report) {
   if (report.mostImproved) return `${report.mostImproved.appName} usage dropped ${report.mostImproved.pctChange}% from last week.`;
@@ -15,10 +18,36 @@ function biggestWin(report) {
   return null;
 }
 
+// A plain, local sentence built from real numbers — not an AI call. See
+// lib/purpose.js / lib/recovery.js for where these come from.
+function goalReflection(activeGoal, thisWeekMinutes, lastWeekMinutes) {
+  if (!activeGoal || (thisWeekMinutes === 0 && lastWeekMinutes === 0)) return null;
+  let sentence = `You spent ${formatHoursMinutes(thisWeekMinutes)} working toward "${activeGoal.title}" this week`;
+  if (lastWeekMinutes > 0) {
+    if (thisWeekMinutes > lastWeekMinutes) sentence += `, up from ${formatHoursMinutes(lastWeekMinutes)} last week`;
+    else if (thisWeekMinutes < lastWeekMinutes) sentence += `, down from ${formatHoursMinutes(lastWeekMinutes)} last week`;
+    else sentence += ", the same as last week";
+  }
+  return sentence + ".";
+}
+
 export default function Report() {
-  const { state, derived } = useAppState();
+  const { state, derived, actions } = useAppState();
   const report = derived.weeklyReport;
+  const { activeGoal, activeGoalMinutesThisWeek, activeGoalRecoveryPlan, patterns } = derived;
   const [shareOpen, setShareOpen] = useState(false);
+
+  const advancedUnlocked = isFeatureUnlocked("advanced_report", state.isPremium);
+  const recoveryUnlocked = isFeatureUnlocked("recovery", state.isPremium);
+
+  const lastWeekGoalStart = addDays(report.thisWeekStart, -7);
+  const lastWeekGoalEnd = addDays(report.thisWeekStart, -1);
+  const lastWeekGoalMinutes = activeGoal
+    ? state.focusSessions
+        .filter((s) => s.goalId === activeGoal.id && s.date >= lastWeekGoalStart && s.date <= lastWeekGoalEnd)
+        .reduce((sum, s) => sum + s.minutes, 0)
+    : 0;
+  const goalReflectionText = goalReflection(activeGoal, activeGoalMinutesThisWeek, lastWeekGoalMinutes);
 
   const monthStart = startOfMonth(derived.nowIso);
   const monthTotals = aggregateByCategory(state.reflections, monthStart, derived.nowIso);
@@ -110,6 +139,50 @@ export default function Report() {
             </p>
           </section>
         </>
+      )}
+
+      {/* Goal reflection/recovery are driven by goal-session data, not the
+          screen-time weekly report above — they can have something useful
+          to say even in a week with no screen time logged yet, so they're
+          deliberately NOT nested inside the hasEnoughData gate. */}
+      {(goalReflectionText || patterns.biggestDistraction) && (
+        <PremiumGate unlocked={advancedUnlocked} label="Deeper weekly reflection — Premium">
+          <section className="card">
+            <h2>Your Reflection</h2>
+            {goalReflectionText && <p className="sub" style={{ marginBottom: patterns.biggestDistraction ? 10 : 0 }}>{goalReflectionText}</p>}
+            {patterns.biggestDistraction && (
+              <p className="sub" style={{ marginBottom: 0 }}>
+                Your biggest opportunity: {budgetCategoryLabel(patterns.biggestDistraction)} took the most of your
+                non-goal time this period — trimming even a little there could go straight toward your goal instead.
+              </p>
+            )}
+          </section>
+        </PremiumGate>
+      )}
+
+      {activeGoalRecoveryPlan && (
+        <PremiumGate unlocked={recoveryUnlocked} label="Goal recovery plans — Premium">
+          <section className="recovery-card">
+            <div className="section-label">Behind on "{activeGoal.title}"</div>
+            <p style={{ margin: "6px 0 12px", fontWeight: 700, color: "var(--text-h)", fontSize: 14.5 }}>
+              You're {formatHoursMinutes(activeGoalRecoveryPlan.shortfallMinutes)} behind this week's target. Here's a
+              realistic way back:
+            </p>
+            {activeGoalRecoveryPlan.sessions.map((s) => (
+              <div className="recovery-row" key={s.date}>
+                <span className="day">{dayOfWeekLabel(s.date)}</span>
+                <span className="amount">{formatHoursMinutes(s.minutes)}</span>
+              </div>
+            ))}
+            {state.recoveryPlan?.weekStart === activeGoalRecoveryPlan.weekStart ? (
+              <p className="sub" style={{ marginTop: 12, marginBottom: 0 }}>✓ Plan accepted</p>
+            ) : (
+              <button className="primary" style={{ width: "100%", marginTop: 12 }} onClick={() => actions.acceptRecoveryPlan(activeGoalRecoveryPlan)}>
+                Accept this plan
+              </button>
+            )}
+          </section>
+        </PremiumGate>
       )}
 
       <section className="card">

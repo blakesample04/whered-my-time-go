@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { useCelebration } from "../state/CelebrationContext";
 import { formatHoursMinutes } from "../lib/timeTranslator";
@@ -6,12 +7,14 @@ import { dailyReclaimedMinutes, trackedDates } from "../lib/reclaim";
 import { addDays, parseISODate } from "../lib/dateUtils";
 import { TIME_BACK_REASONS, reasonIcon } from "../state/defaultState";
 import { templateStepsFor } from "../lib/goalTemplates";
+import { isFeatureUnlocked } from "../lib/premium";
 import ProgressBar from "../components/ProgressBar";
 import ProgressRing from "../components/ProgressRing";
 import AnimatedMinutes from "../components/AnimatedMinutes";
 import ShareModal from "../components/ShareModal";
 import EmptyState from "../components/EmptyState";
 import Modal from "../components/Modal";
+import PremiumGate from "../components/PremiumGate";
 
 const ACHIEVEMENT_ICONS = {
   first_step: "👣",
@@ -26,13 +29,22 @@ const ACHIEVEMENT_ICONS = {
 export default function Progress() {
   const { state, derived, actions } = useAppState();
   const { celebrate } = useCelebration();
-  const { timeBank, streak, level, achievements, nowIso, activeGoal, activeGoalProgress } = derived;
+  const {
+    timeBank, streak, level, achievements, nowIso, activeGoal, activeGoalProgress,
+    activeGoalMinutesInvested, activeGoalMinutesThisWeek, activeGoalEstimatedCompletion,
+    budgetToday, patterns,
+  } = derived;
   const [shareOpen, setShareOpen] = useState(false);
 
   const [newStepText, setNewStepText] = useState("");
   const [newGoalOpen, setNewGoalOpen] = useState(false);
   const [newGoalTitle, setNewGoalTitle] = useState("");
   const [newGoalCategory, setNewGoalCategory] = useState(null);
+  const [newGoalWeeklyMinutes, setNewGoalWeeklyMinutes] = useState(180);
+  const [goalLimitNotice, setGoalLimitNotice] = useState(false);
+
+  const budgetUnlocked = isFeatureUnlocked("time_budget", state.isPremium);
+  const patternsUnlocked = isFeatureUnlocked("patterns", state.isPremium);
 
   const unlockedCount = achievements.filter((a) => a.unlocked).length;
 
@@ -59,10 +71,25 @@ export default function Progress() {
 
   function createGoal() {
     if (!newGoalTitle.trim() || !newGoalCategory) return;
-    actions.addGoal({ title: newGoalTitle, category: newGoalCategory, initialSteps: templateStepsFor(newGoalCategory) });
+    const result = actions.addGoal({
+      title: newGoalTitle,
+      category: newGoalCategory,
+      initialSteps: templateStepsFor(newGoalCategory),
+      weeklyTargetMinutes: newGoalWeeklyMinutes,
+    });
+    if (result === "blocked") {
+      setGoalLimitNotice(true);
+      return;
+    }
     setNewGoalOpen(false);
     setNewGoalTitle("");
     setNewGoalCategory(null);
+    setNewGoalWeeklyMinutes(180);
+  }
+
+  function openNewGoal() {
+    setGoalLimitNotice(false);
+    setNewGoalOpen(true);
   }
 
   return (
@@ -96,6 +123,22 @@ export default function Progress() {
                 ? "No steps yet — add one below."
                 : `${activeGoalProgress.done} of ${activeGoalProgress.total} steps complete`}
             </p>
+
+            <div className="bank-grid" style={{ marginBottom: 16 }}>
+              <div className="cell"><div className="k">Invested</div><div className="v">{formatHoursMinutes(activeGoalMinutesInvested)}</div></div>
+              <div className="cell">
+                <div className="k">This week</div>
+                <div className="v">
+                  {formatHoursMinutes(activeGoalMinutesThisWeek)}
+                  {activeGoal.weeklyTargetMinutes ? ` / ${formatHoursMinutes(activeGoal.weeklyTargetMinutes)}` : ""}
+                </div>
+              </div>
+              <div className="cell">
+                <div className="k">Est. done</div>
+                <div className="v" style={{ fontSize: 12.5 }}>{activeGoalEstimatedCompletion || "—"}</div>
+              </div>
+            </div>
+
             <div className="step-list">
               {activeGoal.steps.map((s) => (
                 <div className={"step-row" + (s.done ? " done" : "")} key={s.id}>
@@ -127,7 +170,7 @@ export default function Progress() {
           <EmptyState icon="🎯" title="No goal set yet" body="Add something you're working toward, and break it into steps." />
         )}
 
-        <button className="link" style={{ marginTop: 14 }} onClick={() => setNewGoalOpen(true)}>
+        <button className="link" style={{ marginTop: 14 }} onClick={openNewGoal}>
           + Start a new goal
         </button>
       </section>
@@ -204,6 +247,50 @@ export default function Progress() {
         </p>
       </section>
 
+      <PremiumGate unlocked={budgetUnlocked} label="Time budgeting — Premium">
+        <section className="card">
+          <h2>Today's Time Budget</h2>
+          {!state.timeBudget ? (
+            <EmptyState icon="🧮" title="No budget set up yet" body="Allocate your daily time across categories in Settings to see this." />
+          ) : (
+            budgetToday.map((row) => (
+              <div className="budget-row" key={row.id}>
+                <div className="budget-row-head">
+                  <span className="name">{row.icon} {row.label}</span>
+                  <span className={"stat" + (row.overBy > 0 ? " over" : "")}>
+                    {row.overBy > 0
+                      ? `+${formatHoursMinutes(row.overBy)} over`
+                      : `${formatHoursMinutes(row.remaining)} left`}
+                  </span>
+                </div>
+                <div className="budget-track">
+                  <div
+                    className={"budget-fill" + (row.overBy > 0 ? " over" : "")}
+                    style={{ width: `${Math.min(100, row.budget ? (row.used / row.budget) * 100 : 0)}%` }}
+                  />
+                </div>
+              </div>
+            ))
+          )}
+        </section>
+      </PremiumGate>
+
+      <PremiumGate unlocked={patternsUnlocked} label="Personal patterns — Premium">
+        <section className="card">
+          <h2>Your Patterns</h2>
+          {!patterns.hasEnoughData ? (
+            <EmptyState icon="📈" title="Not enough data yet" body="Log a bit more usage and a few goal sessions, and patterns will show up here." />
+          ) : (
+            <div className="pattern-grid">
+              <div className="pattern-tile"><div className="k">Best focus time</div><div className="v">{patterns.bestFocusWindow || "—"}</div></div>
+              <div className="pattern-tile"><div className="k">Most productive day</div><div className="v">{patterns.mostProductiveDay || "—"}</div></div>
+              <div className="pattern-tile"><div className="k">Most distracting day</div><div className="v">{patterns.mostDistractingDay || "—"}</div></div>
+              <div className="pattern-tile"><div className="k">Avg. goal session</div><div className="v">{patterns.avgGoalSessionMinutes ? `${patterns.avgGoalSessionMinutes} min` : "—"}</div></div>
+            </div>
+          )}
+        </section>
+      </PremiumGate>
+
       <section className="card">
         <h2>Achievements</h2>
         <p className="sub">{unlockedCount} of {achievements.length} unlocked</p>
@@ -234,33 +321,55 @@ export default function Progress() {
       />
 
       <Modal open={newGoalOpen} onClose={() => setNewGoalOpen(false)} title="New goal">
-        <div className="form-row">
-          <input
-            type="text"
-            placeholder="What do you want to work toward?"
-            value={newGoalTitle}
-            onChange={(e) => setNewGoalTitle(e.target.value)}
+        {goalLimitNotice ? (
+          <EmptyState
+            icon="✦"
+            title="One goal at a time on the free plan"
+            body="Premium unlocks unlimited goals — you can enable a local test toggle for this in Settings while real billing isn't wired up yet."
+            action={<Link to="/settings" className="link">See Settings</Link>}
           />
-        </div>
-        <div className="onboarding-goals" style={{ justifyContent: "flex-start", marginBottom: 16, marginTop: 4 }}>
-          {TIME_BACK_REASONS.map((r) => (
+        ) : (
+          <>
+            <div className="form-row">
+              <input
+                type="text"
+                placeholder="What do you want to work toward?"
+                value={newGoalTitle}
+                onChange={(e) => setNewGoalTitle(e.target.value)}
+              />
+            </div>
+            <div className="onboarding-goals" style={{ justifyContent: "flex-start", marginBottom: 16, marginTop: 4 }}>
+              {TIME_BACK_REASONS.map((r) => (
+                <button
+                  key={r.id}
+                  className={"chip-toggle" + (newGoalCategory === r.id ? " selected" : "")}
+                  onClick={() => setNewGoalCategory(r.id)}
+                >
+                  {r.icon} {r.label}
+                </button>
+              ))}
+            </div>
+            <div className="form-row">
+              <input
+                type="number"
+                min="15"
+                step="15"
+                value={newGoalWeeklyMinutes}
+                onChange={(e) => setNewGoalWeeklyMinutes(Number(e.target.value))}
+                style={{ maxWidth: 100 }}
+              />
+              <span style={{ color: "var(--text-dim)", fontSize: 13 }}>minutes a week</span>
+            </div>
             <button
-              key={r.id}
-              className={"chip-toggle" + (newGoalCategory === r.id ? " selected" : "")}
-              onClick={() => setNewGoalCategory(r.id)}
+              className="primary"
+              style={{ width: "100%", marginTop: 8 }}
+              disabled={!newGoalTitle.trim() || !newGoalCategory}
+              onClick={createGoal}
             >
-              {r.icon} {r.label}
+              Create goal
             </button>
-          ))}
-        </div>
-        <button
-          className="primary"
-          style={{ width: "100%" }}
-          disabled={!newGoalTitle.trim() || !newGoalCategory}
-          onClick={createGoal}
-        >
-          Create goal
-        </button>
+          </>
+        )}
       </Modal>
     </div>
   );

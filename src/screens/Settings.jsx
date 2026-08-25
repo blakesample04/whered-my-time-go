@@ -4,6 +4,8 @@ import { todayISO } from "../lib/dateUtils";
 import { formatHoursMinutes, headlineStat } from "../lib/timeTranslator";
 import { computeRecoveredMinutes, totalMinutesForApp } from "../lib/goals";
 import { parseCSV, splitHeaderAndRows, guessColumnMapping, normalizeRows } from "../lib/csvImport";
+import { BUDGET_CATEGORIES } from "../state/defaultState";
+import { PREMIUM_FEATURES } from "../lib/premium";
 import Toggle from "../components/Toggle";
 import EmptyState from "../components/EmptyState";
 
@@ -23,6 +25,24 @@ export default function Settings() {
   const [importState, setImportState] = useState(null);
   const [importSummary, setImportSummary] = useState(null);
   const [importError, setImportError] = useState("");
+
+  // --- time budget ---
+  const [budgetForm, setBudgetForm] = useState(
+    () =>
+      state.timeBudget || {
+        goals: 90,
+        school: 60,
+        health: 45,
+        social: 120,
+        entertainment: 120,
+        other: 0,
+      }
+  );
+
+  function handleSaveBudget(e) {
+    e.preventDefault();
+    actions.setTimeBudget({ ...budgetForm });
+  }
 
   function handleSetTarget(e) {
     e.preventDefault();
@@ -111,6 +131,32 @@ export default function Settings() {
         {derived.todaysTarget != null && (
           <p className="sub" style={{ marginBottom: 0 }}>Current: {formatHoursMinutes(derived.todaysTarget)}/day</p>
         )}
+      </section>
+
+      <section className="card">
+        <h2>Time Budget</h2>
+        <p className="sub">
+          How you'd like to divide your discretionary time each day. Powers "today's discretionary time"
+          and priorities on Home.
+        </p>
+        <form onSubmit={handleSaveBudget}>
+          {BUDGET_CATEGORIES.map((c) => (
+            <div className="form-row" key={c.id}>
+              <span style={{ width: 130, flex: "0 0 auto", fontSize: 13.5, color: "var(--text-h)", fontWeight: 600 }}>
+                {c.icon} {c.label}
+              </span>
+              <input
+                type="number"
+                min="0"
+                step="15"
+                value={budgetForm[c.id] || 0}
+                onChange={(e) => setBudgetForm({ ...budgetForm, [c.id]: Number(e.target.value) })}
+              />
+              <span style={{ color: "var(--text-dim)", fontSize: 12, flex: "0 0 auto" }}>min/day</span>
+            </div>
+          ))}
+          <button className="primary" type="submit" style={{ marginTop: 8 }}>Save budget</button>
+        </form>
       </section>
 
       <section className="card">
@@ -217,17 +263,54 @@ export default function Settings() {
       {appNames.length > 0 && (
         <section className="card">
           <h2>All-time usage by app</h2>
+          <p className="sub">Categorize each app so it counts toward the right Time Budget bucket above.</p>
           {appNames.map((name) => {
             const total = totalMinutesForApp(name, state.usageLog);
             return (
               <div className="app-block" key={name}>
                 <h3>{name}</h3>
                 <div className="total">{formatHoursMinutes(total)} — {headlineStat(total)}</div>
+                <div className="form-row" style={{ marginTop: 6, marginBottom: 0 }}>
+                  <select
+                    value={state.appCategories[name] || ""}
+                    onChange={(e) => actions.setAppCategory(name, e.target.value)}
+                  >
+                    <option value="">Uncategorized (counts as Other)</option>
+                    {BUDGET_CATEGORIES.filter((c) => c.id !== "goals").map((c) => (
+                      <option key={c.id} value={c.id}>{c.icon} {c.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             );
           })}
         </section>
       )}
+
+      <section className="card">
+        <h2>Premium</h2>
+        <p className="sub">
+          This toggle is a <strong>local test switch only</strong> — no real payment is processed. Real
+          $1.99/month billing isn't connected yet.
+        </p>
+        <Toggle
+          checked={state.isPremium}
+          onChange={(checked) => actions.setPremium(checked)}
+          label="Enable Premium (testing)"
+        />
+        <div className="step-list" style={{ marginTop: 14 }}>
+          {PREMIUM_FEATURES.map((f) => (
+            <div className="step-row" key={f.id}>
+              <div className="step-row-left">
+                <span style={{ color: state.isPremium ? "var(--good)" : "var(--text-dim)" }}>
+                  {state.isPremium ? "✓" : "○"}
+                </span>
+                <span className="step-text">{f.label}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <section className="card">
         <h2>Reset</h2>

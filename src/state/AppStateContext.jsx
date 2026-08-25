@@ -27,7 +27,22 @@ import { buildReflection } from "../lib/reflections";
 import { buildWeeklyReport } from "../lib/weeklyReport";
 import { getPendingReminders } from "../lib/notifications";
 import { createGoal as createAppGoal } from "../lib/goals";
-import { createGoal, createStep, goalProgress, nextStep, activeGoalOf } from "../lib/purpose";
+import {
+  createGoal,
+  createStep,
+  goalProgress,
+  nextStep,
+  activeGoalOf,
+  goalMinutesInvested,
+  goalMinutesThisWeek,
+  estimateCompletionDate,
+} from "../lib/purpose";
+import { usageByCategoryForDate, discretionaryRemaining, budgetComparison, todaysPriorities, categoryMinutesForDate } from "../lib/budget";
+import { computePatterns, avgGoalSessionMinutes } from "../lib/patterns";
+import { computeRecoveryPlan } from "../lib/recovery";
+import { suggestInstead } from "../lib/instead";
+import { FREE_GOAL_LIMIT } from "../lib/premium";
+import { addDays } from "../lib/dateUtils";
 
 const AppStateContext = createContext(null);
 
@@ -41,6 +56,11 @@ function loadAll() {
 
 export function AppStateProvider({ children }) {
   const [state, setState] = useState(loadAll);
+  // Transient only — NOT in STORAGE_KEYS/persisted. This is just "what the
+  // user clicked before navigating to Focus," e.g. Home's "Start Goal
+  // Session" button, so Focus can pre-attach the session to that goal step.
+  // It's fine for this to reset on reload; it's navigation intent, not data.
+  const [pendingSessionContext, setPendingSessionContext] = useState(null);
 
   // Persist whichever slice changed. Cheap enough to just re-save everything
   // that's in STORAGE_KEYS on every state change given the app's data size.
@@ -117,6 +137,50 @@ export function AppStateProvider({ children }) {
   const activeGoal = useMemo(() => activeGoalOf(state.goals), [state.goals]);
   const activeGoalProgress = useMemo(() => goalProgress(activeGoal), [activeGoal]);
   const activeGoalNextStep = useMemo(() => nextStep(activeGoal), [activeGoal]);
+  const activeGoalMinutesInvested = useMemo(() => goalMinutesInvested(activeGoal, state.focusSessions), [activeGoal, state.focusSessions]);
+  const activeGoalMinutesThisWeek = useMemo(
+    () => goalMinutesThisWeek(activeGoal, state.focusSessions, nowIso),
+    [activeGoal, state.focusSessions, nowIso]
+  );
+  const activeGoalEstimatedCompletion = useMemo(
+    () => estimateCompletionDate(activeGoal, state.focusSessions, nowIso),
+    [activeGoal, state.focusSessions, nowIso]
+  );
+  const activeGoalRecoveryPlan = useMemo(
+    () => computeRecoveryPlan(activeGoal, state.focusSessions, nowIso),
+    [activeGoal, state.focusSessions, nowIso]
+  );
+
+  // --- time budget --------------------------------------------------------
+
+  const usageByCategoryToday = useMemo(() => usageByCategoryForDate(nowIso, state), [nowIso, state]);
+  const discretionaryRemainingToday = useMemo(
+    () => discretionaryRemaining(state.timeBudget, usageByCategoryToday),
+    [state.timeBudget, usageByCategoryToday]
+  );
+  const budgetToday = useMemo(
+    () => (state.timeBudget ? budgetComparison(state.timeBudget, usageByCategoryToday) : []),
+    [state.timeBudget, usageByCategoryToday]
+  );
+  const priorities = useMemo(
+    () => todaysPriorities(state.timeBudget, usageByCategoryToday),
+    [state.timeBudget, usageByCategoryToday]
+  );
+
+  const patterns = useMemo(() => computePatterns(state), [state]);
+
+  const yesterdayEntertainmentMinutes = useMemo(
+    () => categoryMinutesForDate("entertainment", addDays(nowIso, -1), state),
+    [nowIso, state]
+  );
+  const insteadSuggestions = useMemo(
+    () =>
+      suggestInstead(yesterdayEntertainmentMinutes, {
+        activeGoal,
+        avgGoalSessionMinutes: avgGoalSessionMinutes(state.focusSessions),
+      }),
+    [yesterdayEntertainmentMinutes, activeGoal, state.focusSessions]
+  );
 
   const derived = {
     nowIso,
@@ -135,6 +199,18 @@ export function AppStateProvider({ children }) {
     activeGoal,
     activeGoalProgress,
     activeGoalNextStep,
+    activeGoalMinutesInvested,
+    activeGoalMinutesThisWeek,
+    activeGoalEstimatedCompletion,
+    activeGoalRecoveryPlan,
+    usageByCategoryToday,
+    discretionaryRemainingToday,
+    budgetToday,
+    priorities,
+    patterns,
+    yesterdayEntertainmentMinutes,
+    insteadSuggestions,
+    pendingSessionContext,
     isFirstTimeUser: state.usageLog.length === 0,
   };
 
@@ -170,15 +246,23 @@ export function AppStateProvider({ children }) {
 
       // --- purpose goals ("what you're working toward") ---
 
-      addGoal({ title, category, why, initialSteps = [] }) {
+      // Returns the created goal, or the string "blocked" if the free-tier
+      // goal limit stopped it (see lib/premium.js — isPremium is a local
+      // test toggle for now, not real billing).
+      addGoal({ title, category, why, initialSteps = [], weeklyTargetMinutes, targetDate }) {
         if (!title || !title.trim()) return null;
         let created = null;
+        let blocked = false;
         patch((prev) => {
-          created = createGoal({ title, category, why, isActive: prev.goals.length === 0 });
+          if (prev.goals.length >= FREE_GOAL_LIMIT && !prev.isPremium) {
+            blocked = true;
+            return {};
+          }
+          created = createGoal({ title, category, why, isActive: prev.goals.length === 0, weeklyTargetMinutes, targetDate });
           created.steps = initialSteps.filter((s) => s && s.trim()).map((s) => createStep(s));
           return { goals: [...prev.goals, created] };
         });
-        return created;
+        return blocked ? "blocked" : created;
       },
 
       addGoalStep(goalId, text) {
@@ -220,16 +304,30 @@ export function AppStateProvider({ children }) {
         });
       },
 
-      startFocusSession(durationMinutes) {
-        const session = { id: `focus:${Date.now()}`, durationMinutes, startedAt: Date.now() };
+      // context: optional { goalId, stepId } — when present, the session
+      // is "working on" a specific goal step (Home's "Start Goal Session"
+      // and Focus's goal-linked flow both pass this). Plain focus sessions
+      // from Focus's own duration picker omit it entirely.
+      startFocusSession(durationMinutes, context = null) {
+        const session = {
+          id: `focus:${Date.now()}`,
+          durationMinutes,
+          startedAt: Date.now(),
+          goalId: context?.goalId || null,
+          stepId: context?.stepId || null,
+        };
         patch({ activeFocusSession: session });
         return session;
       },
 
       // Idempotent: only awards if an active session with this id still
       // exists. Once awarded, activeFocusSession is cleared, so calling
-      // this again (e.g. a duplicate timer tick) is a no-op.
+      // this again (e.g. a duplicate timer tick) is a no-op. If the session
+      // was tied to a goal step, that step is marked done in the same
+      // update — this is the literal time → action → goal-progress link
+      // the whole Goal Session feature exists for.
       completeActiveFocusSession() {
+        let result = null;
         setState((prev) => {
           const session = prev.activeFocusSession;
           if (!session) return prev;
@@ -244,13 +342,35 @@ export function AppStateProvider({ children }) {
             minutes: awardedMinutes,
             startedAt: session.startedAt,
             completedAt: Date.now(),
+            goalId: session.goalId || null,
+            stepId: session.stepId || null,
           };
+
+          let goals = prev.goals;
+          let stepCompletedText = null;
+          if (session.goalId && session.stepId) {
+            goals = prev.goals.map((g) => {
+              if (g.id !== session.goalId) return g;
+              return {
+                ...g,
+                steps: g.steps.map((s) => {
+                  if (s.id !== session.stepId) return s;
+                  if (!s.done) stepCompletedText = s.text;
+                  return { ...s, done: true, doneAt: new Date().toISOString() };
+                }),
+              };
+            });
+          }
+
+          result = { awardedMinutes, stepCompletedText };
           return {
             ...prev,
+            goals,
             focusSessions: [...prev.focusSessions, record],
             activeFocusSession: null,
           };
         });
+        return result;
       },
 
       cancelActiveFocusSession() {
@@ -285,13 +405,24 @@ export function AppStateProvider({ children }) {
         }));
       },
 
+      // Returns the newly created goal (or null), so the caller can e.g.
+      // immediately start a goal session on its first step.
       completeOnboarding({ estimateMinutesPerDay, timeBackGoals, dailyTargetMinutes, goal }) {
+        let createdGoal = null;
         patch((prev) => {
           const goals = [...prev.goals];
           if (goal && goal.title && goal.title.trim()) {
-            const created = createGoal({ title: goal.title, category: goal.category, why: goal.why, isActive: true });
+            const created = createGoal({
+              title: goal.title,
+              category: goal.category,
+              why: goal.why,
+              isActive: true,
+              weeklyTargetMinutes: goal.weeklyTargetMinutes,
+              targetDate: goal.targetDate,
+            });
             created.steps = (goal.steps || []).filter((s) => s && s.trim()).map((s) => createStep(s));
             goals.push(created);
+            createdGoal = created;
           }
           return {
             onboardingComplete: true,
@@ -303,11 +434,45 @@ export function AppStateProvider({ children }) {
             targetHistory: addTargetChange(prev.targetHistory, EPOCH_DATE, dailyTargetMinutes),
           };
         });
+        return createdGoal;
+      },
+
+      // --- time budget ---
+
+      setTimeBudget(nextBudget) {
+        patch({ timeBudget: nextBudget });
+      },
+
+      setAppCategory(appName, categoryId) {
+        patch((prev) => ({ appCategories: { ...prev.appCategories, [appName]: categoryId } }));
+      },
+
+      // --- premium (LOCAL TEST TOGGLE — see lib/premium.js, no real billing yet) ---
+
+      setPremium(enabled) {
+        patch({ isPremium: enabled });
+      },
+
+      // --- recovery plan ---
+
+      acceptRecoveryPlan(plan) {
+        patch({ recoveryPlan: { ...plan, acceptedAt: new Date().toISOString() } });
+      },
+
+      dismissRecoveryPlan() {
+        patch({ recoveryPlan: null });
       },
 
       resetAllData() {
         resetAll(Object.values(STORAGE_KEYS));
         setState({ ...DEFAULT_STATE });
+      },
+
+      setPendingSessionContext(ctx) {
+        setPendingSessionContext(ctx);
+      },
+      clearPendingSessionContext() {
+        setPendingSessionContext(null);
       },
     }),
     [patch]
