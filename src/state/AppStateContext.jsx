@@ -247,8 +247,7 @@ export function AppStateProvider({ children }) {
       // --- purpose goals ("what you're working toward") ---
 
       // Returns the created goal, or the string "blocked" if the free-tier
-      // goal limit stopped it (see lib/premium.js — isPremium is a local
-      // test toggle for now, not real billing).
+      // goal limit stopped it (see lib/premium.js for FREE_GOAL_LIMIT).
       addGoal({ title, category, why, initialSteps = [], weeklyTargetMinutes, targetDate }) {
         if (!title || !title.trim()) return null;
         let created = null;
@@ -447,10 +446,15 @@ export function AppStateProvider({ children }) {
         patch((prev) => ({ appCategories: { ...prev.appCategories, [appName]: categoryId } }));
       },
 
-      // --- premium (LOCAL TEST TOGGLE — see lib/premium.js, no real billing yet) ---
+      // --- premium (real Stripe subscription — see lib/billing.js) ---
 
-      setPremium(enabled) {
-        patch({ isPremium: enabled });
+      // Called after a subscription is verified (right after Stripe
+      // Checkout, or when the user re-enters their subscriber email on a
+      // new device) via lib/billing.js's checkSubscription(). Never called
+      // with active:true except in response to a verified server response —
+      // see Settings.jsx and CheckoutSuccess.jsx.
+      setPremiumStatus(email, active) {
+        patch({ isPremium: active, premiumEmail: active ? email.trim().toLowerCase() : null });
       },
 
       // --- recovery plan ---

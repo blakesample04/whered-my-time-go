@@ -22,6 +22,7 @@ export const STORAGE_KEYS = {
   timeBudget: "timeBudget",
   appCategories: "appCategories",
   isPremium: "isPremium",
+  premiumEmail: "premiumEmail",
   recoveryPlan: "recoveryPlan",
 };
 
@@ -44,11 +45,13 @@ export const DEFAULT_STATE = {
   // rather than assuming a default allocation nobody chose.
   timeBudget: null, // { goals, school, health, social, entertainment, other }
   appCategories: {}, // { [appName]: BUDGET_CATEGORIES id } — user-assigned in Settings
-  // Premium is a LOCAL TEST TOGGLE for now, not a real subscription — see
-  // Settings for the explicit "testing only" label. No payment processor is
-  // wired up yet; this only exists so premium-gated features can be built
-  // and verified ahead of adding real billing.
+  // isPremium is set by actions.setPremiumStatus() after a real Stripe
+  // subscription is verified (see lib/billing.js + Settings) — either right
+  // after Checkout, or when the user re-enters their subscriber email on a
+  // new device. premiumEmail remembers which email unlocked it, so Settings
+  // can show it and re-verify it later.
   isPremium: false,
+  premiumEmail: null,
   recoveryPlan: null, // { createdAt, weekStart, sessions: [{ date, minutes }] } | null
 };
 
