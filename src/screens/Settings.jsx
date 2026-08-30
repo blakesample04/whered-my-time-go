@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { todayISO } from "../lib/dateUtils";
 import { formatHoursMinutes, headlineStat } from "../lib/timeTranslator";
@@ -6,6 +7,7 @@ import { computeRecoveredMinutes, totalMinutesForApp } from "../lib/goals";
 import { parseCSV, splitHeaderAndRows, guessColumnMapping, normalizeRows } from "../lib/csvImport";
 import { BUDGET_CATEGORIES } from "../state/defaultState";
 import { PREMIUM_FEATURES } from "../lib/premium";
+import { startCheckout, checkSubscription } from "../lib/billing";
 import Toggle from "../components/Toggle";
 import EmptyState from "../components/EmptyState";
 
@@ -105,6 +107,67 @@ export default function Settings() {
     actions.importUsageEntries(entries);
     setImportSummary({ imported: entries.length, skipped });
     setImportState(null);
+  }
+
+  // --- premium ---
+  const [subscribeEmail, setSubscribeEmail] = useState("");
+  const [subscribing, setSubscribing] = useState(false);
+  const [subscribeError, setSubscribeError] = useState("");
+
+  const [unlockEmail, setUnlockEmail] = useState("");
+  const [unlocking, setUnlocking] = useState(false);
+  const [unlockMessage, setUnlockMessage] = useState("");
+
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshMessage, setRefreshMessage] = useState("");
+
+  async function handleSubscribe(e) {
+    e.preventDefault();
+    if (!subscribeEmail.trim() || !subscribeEmail.includes("@")) return;
+    setSubscribeError("");
+    setSubscribing(true);
+    try {
+      const url = await startCheckout(subscribeEmail.trim());
+      window.location.href = url;
+    } catch {
+      setSubscribeError("Couldn't start checkout — check your connection and try again.");
+      setSubscribing(false);
+    }
+  }
+
+  async function handleUnlock(e) {
+    e.preventDefault();
+    if (!unlockEmail.trim() || !unlockEmail.includes("@")) return;
+    setUnlockMessage("");
+    setUnlocking(true);
+    try {
+      const { active } = await checkSubscription({ email: unlockEmail.trim() });
+      if (active) {
+        actions.setPremiumStatus(unlockEmail.trim(), true);
+        setUnlockEmail("");
+      } else {
+        setUnlockMessage("No active subscription found for that email.");
+      }
+    } catch {
+      setUnlockMessage("Couldn't reach the server — check your connection and try again.");
+    } finally {
+      setUnlocking(false);
+    }
+  }
+
+  async function handleRefreshStatus() {
+    if (!state.premiumEmail) return;
+    setRefreshMessage("");
+    setRefreshing(true);
+    try {
+      const { active } = await checkSubscription({ email: state.premiumEmail });
+      actions.setPremiumStatus(state.premiumEmail, active);
+      if (!active) setRefreshMessage("This subscription is no longer active.");
+    } catch {
+      setRefreshMessage("Couldn't reach the server — check your connection and try again.");
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   const appNames = [...new Set(state.usageLog.map((u) => u.appName))];
@@ -289,27 +352,79 @@ export default function Settings() {
 
       <section className="card">
         <h2>Premium</h2>
-        <p className="sub">
-          This toggle is a <strong>local test switch only</strong> — no real payment is processed. Real
-          $1.99/month billing isn't connected yet.
-        </p>
-        <Toggle
-          checked={state.isPremium}
-          onChange={(checked) => actions.setPremium(checked)}
-          label="Enable Premium (testing)"
-        />
-        <div className="step-list" style={{ marginTop: 14 }}>
-          {PREMIUM_FEATURES.map((f) => (
-            <div className="step-row" key={f.id}>
-              <div className="step-row-left">
-                <span style={{ color: state.isPremium ? "var(--good)" : "var(--text-dim)" }}>
-                  {state.isPremium ? "✓" : "○"}
-                </span>
-                <span className="step-text">{f.label}</span>
-              </div>
+        {state.isPremium ? (
+          <>
+            <p className="sub">
+              Premium is active, unlocked with <strong>{state.premiumEmail}</strong>.
+            </p>
+            <div className="step-list" style={{ marginTop: 14 }}>
+              {PREMIUM_FEATURES.map((f) => (
+                <div className="step-row" key={f.id}>
+                  <div className="step-row-left">
+                    <span style={{ color: "var(--good)" }}>✓</span>
+                    <span className="step-text">{f.label}</span>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+            <button
+              className="secondary"
+              type="button"
+              style={{ marginTop: 14 }}
+              onClick={handleRefreshStatus}
+              disabled={refreshing}
+            >
+              {refreshing ? "Checking…" : "Refresh status"}
+            </button>
+            {refreshMessage && <p className="empty">{refreshMessage}</p>}
+          </>
+        ) : (
+          <>
+            <p className="sub">$1.99/month unlocks:</p>
+            <div className="step-list" style={{ marginTop: 6, marginBottom: 14 }}>
+              {PREMIUM_FEATURES.map((f) => (
+                <div className="step-row" key={f.id}>
+                  <div className="step-row-left">
+                    <span style={{ color: "var(--text-dim)" }}>○</span>
+                    <span className="step-text">{f.label}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <form onSubmit={handleSubscribe}>
+              <div className="form-row">
+                <input
+                  type="email"
+                  placeholder="you@example.com"
+                  value={subscribeEmail}
+                  onChange={(e) => setSubscribeEmail(e.target.value)}
+                  required
+                />
+                <button className="primary" type="submit" disabled={subscribing}>
+                  {subscribing ? "Redirecting…" : "Subscribe — $1.99/month"}
+                </button>
+              </div>
+            </form>
+            {subscribeError && <p className="empty" style={{ color: "var(--warn)" }}>{subscribeError}</p>}
+
+            <p className="sub" style={{ marginTop: 18 }}>Already subscribed on another device? Enter that email to unlock here.</p>
+            <form onSubmit={handleUnlock}>
+              <div className="form-row">
+                <input
+                  type="email"
+                  placeholder="Email you subscribed with"
+                  value={unlockEmail}
+                  onChange={(e) => setUnlockEmail(e.target.value)}
+                  required
+                />
+                <button className="secondary" type="submit" disabled={unlocking}>
+                  {unlocking ? "Checking…" : "Unlock"}
+                </button>
+              </div>
+            </form>
+            {unlockMessage && <p className="empty">{unlockMessage}</p>}
+          </>
+        )}
       </section>
 
       <section className="card">
@@ -324,6 +439,10 @@ export default function Settings() {
           Reset all data
         </button>
       </section>
+
+      <p className="sub" style={{ textAlign: "center", marginTop: -8 }}>
+        <Link to="/privacy" className="link">Privacy &amp; Terms</Link>
+      </p>
     </div>
   );
 }

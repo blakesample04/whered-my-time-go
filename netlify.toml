@@ -1,0 +1,14 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+# React Router's BrowserRouter serves every route (e.g. /settings,
+# /checkout/success) client-side, so a direct hit or refresh on any of
+# those paths needs to fall back to index.html rather than 404. This does
+# NOT affect /.netlify/functions/* — Netlify routes those before this
+# catch-all runs.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
