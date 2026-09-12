@@ -45,9 +45,9 @@ export default async (req) => {
     return new Response(JSON.stringify({ error: "Invalid JSON body" }), { status: 400 });
   }
 
-  const store = getStore("subscriptions");
-
   try {
+    const store = getStore("subscriptions");
+
     if (body.sessionId) {
       const session = await stripe.checkout.sessions.retrieve(body.sessionId, {
         expand: ["subscription", "customer"],
@@ -64,7 +64,18 @@ export default async (req) => {
         stripeCustomerId: typeof session.customer === "string" ? session.customer : session.customer?.id,
         stripeSubscriptionId: subscription.id,
         currentPeriodEnd: subscription.current_period_end,
-        lastEventCreated: Math.floor(Date.now() / 1000),
+        // Deliberately NOT Date.now(): stripe-webhook.js compares this field
+        // against Stripe's own `event.created` (seconds-since-epoch at the
+        // time Stripe generated the event) to drop out-of-order webhooks. A
+        // wall-clock timestamp written here — necessarily AFTER the real
+        // subscription.created event already happened, since the user had
+        // to finish Checkout and get redirected back first — would almost
+        // always be greater than that event's `created`, so the genuine
+        // webhook for this exact subscription would be misclassified as
+        // stale and silently dropped. 0 is falsy, so the webhook's
+        // `existing?.lastEventCreated && ...` guard never treats a
+        // self-heal write as something to protect against.
+        lastEventCreated: 0,
         updatedAt: new Date().toISOString(),
       };
       // Self-heal Blobs from Stripe's own answer, in case the webhook is

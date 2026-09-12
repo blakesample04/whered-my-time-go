@@ -142,14 +142,27 @@ export default function Progress() {
             <div className="step-list">
               {activeGoal.steps.map((s) => (
                 <div className={"step-row" + (s.done ? " done" : "")} key={s.id}>
-                  <div className="step-row-left">
-                    <button
-                      className={"step-toggle" + (s.done ? " checked" : "")}
-                      onClick={() => toggleStep(s.id)}
-                      aria-label={s.done ? "Mark step not done" : "Mark step done"}
-                    >
+                  {/* The whole row is the tap target, not just the 22px
+                      circle — that circle alone is well under a comfortable
+                      touch-target size on a phone. */}
+                  <div
+                    className="step-row-left"
+                    role="button"
+                    tabIndex={0}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => toggleStep(s.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggleStep(s.id);
+                      }
+                    }}
+                    aria-pressed={s.done}
+                    aria-label={s.done ? "Mark step not done" : "Mark step done"}
+                  >
+                    <span className={"step-toggle" + (s.done ? " checked" : "")} aria-hidden="true">
                       {s.done ? "✓" : ""}
-                    </button>
+                    </span>
                     <span className="step-text">{s.text}</span>
                   </div>
                 </div>
@@ -159,6 +172,7 @@ export default function Progress() {
               <input
                 type="text"
                 placeholder="Add a step"
+                aria-label="Add a step"
                 value={newStepText}
                 onChange={(e) => setNewStepText(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addStep()}
@@ -227,7 +241,7 @@ export default function Progress() {
         <div className="section-label" style={{ marginBottom: 10 }}>Streak</div>
         <div style={{ display: "flex", gap: 28 }}>
           <div className="streak-flame-row">
-            <span className={"streak-flame-icon" + (streak.current === 0 ? " dim" : "")}>🔥</span>
+            <span className={"streak-flame-icon" + (streak.current === 0 ? " dim" : "")} aria-hidden="true">🔥</span>
             <span className="streak-value num">{streak.current}</span>
           </div>
           {streak.graceAvailable > 0 && (
@@ -297,7 +311,7 @@ export default function Progress() {
         <div className="achv-grid">
           {achievements.map((a) => (
             <div className={"achv-tile" + (a.unlocked ? " unlocked" : "")} key={a.id}>
-              <span className="achv-icon">{ACHIEVEMENT_ICONS[a.id] || "★"}</span>
+              <span className="achv-icon" aria-hidden="true">{ACHIEVEMENT_ICONS[a.id] || "★"}</span>
               <div className="achv-title">{a.title}</div>
               <div className="achv-desc">{a.description}</div>
               <div className="achv-state">{a.unlocked ? "Unlocked" : "Locked"}</div>
@@ -325,7 +339,7 @@ export default function Progress() {
           <EmptyState
             icon="✦"
             title="One goal at a time on the free plan"
-            body="Premium unlocks unlimited goals — you can enable a local test toggle for this in Settings while real billing isn't wired up yet."
+            body="Premium unlocks unlimited goals — subscribe any time from Settings."
             action={<Link to="/settings" className="link">See Settings</Link>}
           />
         ) : (
@@ -334,6 +348,7 @@ export default function Progress() {
               <input
                 type="text"
                 placeholder="What do you want to work toward?"
+                aria-label="What you want to work toward"
                 value={newGoalTitle}
                 onChange={(e) => setNewGoalTitle(e.target.value)}
               />
@@ -354,6 +369,7 @@ export default function Progress() {
                 type="number"
                 min="15"
                 step="15"
+                aria-label="Weekly target in minutes"
                 value={newGoalWeeklyMinutes}
                 onChange={(e) => setNewGoalWeeklyMinutes(Number(e.target.value))}
                 style={{ maxWidth: 100 }}

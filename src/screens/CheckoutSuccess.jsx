@@ -40,7 +40,7 @@ export default function CheckoutSuccess() {
   }, []);
 
   return (
-    <div className="screen">
+    <div className="screen no-navbar">
       <div className="screen-title">
         <h1>Premium</h1>
       </div>

@@ -157,7 +157,13 @@ export function normalizeDate(raw) {
 
   const parsed = new Date(value);
   if (!Number.isNaN(parsed.getTime())) {
-    return parsed.toISOString().slice(0, 10);
+    // Use the LOCAL calendar date, not .toISOString() (which reports UTC) —
+    // see the identical trap documented in dateUtils.js. Converting to UTC
+    // here would shift the date by a day for anyone not at UTC+0.
+    const y = parsed.getFullYear();
+    const m = String(parsed.getMonth() + 1).padStart(2, "0");
+    const d = String(parsed.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
   }
 
   return null;

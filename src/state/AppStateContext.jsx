@@ -218,16 +218,35 @@ export function AppStateProvider({ children }) {
 
   const actions = useMemo(
     () => ({
+      // Rejects anything that isn't a real, sane, positive usage record —
+      // matches the same rules lib/csvImport.js already applies to imported
+      // rows, so a bad manual entry (empty app name, negative/NaN/zero
+      // minutes) can't slip in and corrupt every downstream sum (time bank,
+      // streaks, XP, budget, weekly report all assume finite non-negative
+      // minutes).
       addUsageEntry(entry) {
-        patch((prev) => ({ usageLog: [...prev.usageLog, entry] }));
+        const minutes = Number(entry?.minutes);
+        if (!entry?.date || !entry?.appName || !Number.isFinite(minutes) || minutes <= 0) return;
+        patch((prev) => ({ usageLog: [...prev.usageLog, { ...entry, minutes }] }));
       },
 
       importUsageEntries(entries) {
         if (entries.length === 0) return;
         patch((prev) => {
-          const keySet = new Set(entries.map((e) => `${e.date}|${e.appName}`));
+          // Merge duplicate date+appName rows WITHIN the incoming batch
+          // itself (e.g. a CSV export that lists the same app/day twice)
+          // before merging into usageLog — otherwise each duplicate row
+          // survives as its own additive entry and usage gets double (or
+          // triple-, quadruple-...) counted instead of deduped.
+          const merged = new Map();
+          for (const e of entries) {
+            const key = `${e.date}|${e.appName}`;
+            const existing = merged.get(key);
+            merged.set(key, existing ? { ...existing, minutes: existing.minutes + e.minutes } : e);
+          }
+          const keySet = new Set(merged.keys());
           const kept = prev.usageLog.filter((u) => !keySet.has(`${u.date}|${u.appName}`));
-          return { usageLog: [...kept, ...entries] };
+          return { usageLog: [...kept, ...merged.values()] };
         });
       },
 

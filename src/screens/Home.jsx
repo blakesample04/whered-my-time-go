@@ -182,7 +182,7 @@ export default function Home() {
             title="Set a goal to get started"
             body="This app works best when it's helping you get somewhere specific — add one on the Progress tab."
             action={
-              <Link to="/progress" className="primary" style={{ display: "inline-block", padding: "10px 20px", borderRadius: 10, textDecoration: "none" }}>
+              <Link to="/progress" className="link-cta primary">
                 Set a goal
               </Link>
             }
@@ -226,7 +226,7 @@ export default function Home() {
         <div style={{ display: "flex", gap: 20 }}>
           <div style={{ flex: 1 }}>
             <div className="streak-flame-row">
-              <span className={"streak-flame-icon" + (streak.current === 0 ? " dim" : "")}>🔥</span>
+              <span className={"streak-flame-icon" + (streak.current === 0 ? " dim" : "")} aria-hidden="true">🔥</span>
               <span className="streak-value num">{streak.current}</span>
               <span className="streak-unit">day{streak.current === 1 ? "" : "s"}</span>
             </div>

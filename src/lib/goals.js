@@ -8,13 +8,19 @@
 
 // usageLog entries look like: { date: 'YYYY-MM-DD', appName, minutes }
 
+import { todayISO } from "./dateUtils";
+import { safeMinutes } from "./reclaim";
+
 export function createGoal({ appName, baselineMinutesPerDay, dailyLimitMinutes }) {
   return {
     id: (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()),
     appName,
     baselineMinutesPerDay,
     dailyLimitMinutes,
-    createdAt: new Date().toISOString().slice(0, 10),
+    // Local calendar date, not new Date().toISOString().slice(0, 10) — that
+    // reports UTC and can record the wrong day near midnight depending on
+    // the user's timezone (the same trap documented in dateUtils.js).
+    createdAt: todayISO(),
   };
 }
 
@@ -30,7 +36,7 @@ export function totalMinutesForApp(appName, usageLog) {
 export function computeRecoveredMinutes(goal, usageLog) {
   const daysForApp = usageLog.filter((u) => u.appName === goal.appName);
   return daysForApp.reduce((total, day) => {
-    const recoveredToday = Math.max(0, goal.baselineMinutesPerDay - day.minutes);
+    const recoveredToday = Math.max(0, goal.baselineMinutesPerDay - safeMinutes(day.minutes));
     return total + recoveredToday;
   }, 0);
 }

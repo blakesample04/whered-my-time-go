@@ -49,11 +49,12 @@ export function activeGoalOf(goals) {
 
 // --- time-vs-progress: how much real time has actually gone into a goal ---
 
-import { startOfWeek, addDays } from "./dateUtils";
+import { startOfWeek, addDays, parseISODate } from "./dateUtils";
+import { safeMinutes } from "./reclaim";
 
 export function goalMinutesInvested(goal, focusSessions) {
   if (!goal) return 0;
-  return focusSessions.filter((s) => s.goalId === goal.id).reduce((sum, s) => sum + s.minutes, 0);
+  return focusSessions.filter((s) => s.goalId === goal.id).reduce((sum, s) => sum + safeMinutes(s.minutes), 0);
 }
 
 export function goalMinutesThisWeek(goal, focusSessions, todayIso) {
@@ -62,7 +63,7 @@ export function goalMinutesThisWeek(goal, focusSessions, todayIso) {
   const weekEnd = addDays(weekStart, 6);
   return focusSessions
     .filter((s) => s.goalId === goal.id && s.date >= weekStart && s.date <= weekEnd)
-    .reduce((sum, s) => sum + s.minutes, 0);
+    .reduce((sum, s) => sum + safeMinutes(s.minutes), 0);
 }
 
 const DEFAULT_STEP_MINUTES = 45; // fallback effort-per-step assumption, used only until there's real pace data
@@ -77,7 +78,12 @@ export function estimateCompletionDate(goal, focusSessions, todayIso) {
   const remainingSteps = total - done;
   if (remainingSteps <= 0) return null; // already done, or no steps to estimate against
 
-  const weeksSinceCreated = Math.max(1, Math.round((new Date(todayIso) - new Date(goal.createdAt)) / (7 * 86400000)));
+  // parseISODate(todayIso), not new Date(todayIso) — a bare 'YYYY-MM-DD'
+  // string is parsed by the Date constructor as UTC midnight, not local
+  // midnight (the exact trap dateUtils.js documents and works around
+  // elsewhere), which would shift this by up to a day off-UTC and could
+  // flip the week-count rounding below.
+  const weeksSinceCreated = Math.max(1, Math.round((parseISODate(todayIso) - new Date(goal.createdAt)) / (7 * 86400000)));
   const paceStepsPerWeek = weeksSinceCreated >= 1 && done > 0 ? done / weeksSinceCreated : null;
 
   let weeksNeeded;

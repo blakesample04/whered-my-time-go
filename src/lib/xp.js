@@ -6,7 +6,7 @@
 // contribute once per calendar date (or once per session/challenge id),
 // so re-rendering or re-importing data can't create extra XP.
 
-import { trackedDates, dailyReclaimedMinutes, metTargetOnDate } from "./reclaim";
+import { trackedDates, dailyReclaimedMinutes, metTargetOnDate, safeMinutes } from "./reclaim";
 import { computeStreak } from "./streaks";
 
 // Levels are configurable: each entry is the cumulative XP required to
@@ -92,7 +92,7 @@ export function computeXpBreakdown(state) {
   }
 
   const focusXp = focusSessions.reduce(
-    (sum, s) => sum + Math.min(s.minutes, XP_RULES.focusXpCapPerSession) * XP_RULES.focusXpPerMinute,
+    (sum, s) => sum + Math.min(safeMinutes(s.minutes), XP_RULES.focusXpCapPerSession) * XP_RULES.focusXpPerMinute,
     0
   );
 

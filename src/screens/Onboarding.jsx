@@ -5,27 +5,38 @@ import { TIME_BACK_REASONS } from "../state/defaultState";
 import { projectAnnualHours } from "../lib/reclaim";
 import { formatHoursMinutes } from "../lib/timeTranslator";
 import { templateStepsFor } from "../lib/goalTemplates";
+import { loadValue, saveValue } from "../state/storage";
 
 const STEP_COUNT = 8;
+
+// Onboarding asks for real, considered input (a goal, a weekly target...),
+// and on Android there's always a chance of getting interrupted mid-flow —
+// a call, a notification, the OS reclaiming a backgrounded tab — and coming
+// back to find the app restarted from scratch. Without this, that silently
+// threw away everything typed so far and dropped the user back to step 0
+// with no explanation, which reads as broken rather than interrupted.
+const DRAFT_KEY = "onboardingDraft";
 
 export default function Onboarding() {
   const { actions } = useAppState();
   const navigate = useNavigate();
-  const [step, setStep] = useState(0);
+  const [draft] = useState(() => loadValue(DRAFT_KEY, null));
+
+  const [step, setStep] = useState(draft?.step ?? 0);
 
   // --- goal ---
-  const [goalTitle, setGoalTitle] = useState("");
-  const [goalCategory, setGoalCategory] = useState(null);
-  const [goalWhy, setGoalWhy] = useState("");
-  const [weeklyTargetMinutes, setWeeklyTargetMinutes] = useState(180);
-  const [targetDate, setTargetDate] = useState("");
-  const [steps, setSteps] = useState([]);
-  const [stepsSeeded, setStepsSeeded] = useState(false);
+  const [goalTitle, setGoalTitle] = useState(draft?.goalTitle ?? "");
+  const [goalCategory, setGoalCategory] = useState(draft?.goalCategory ?? null);
+  const [goalWhy, setGoalWhy] = useState(draft?.goalWhy ?? "");
+  const [weeklyTargetMinutes, setWeeklyTargetMinutes] = useState(draft?.weeklyTargetMinutes ?? 180);
+  const [targetDate, setTargetDate] = useState(draft?.targetDate ?? "");
+  const [steps, setSteps] = useState(draft?.steps ?? []);
+  const [stepsSeeded, setStepsSeeded] = useState(draft?.stepsSeeded ?? false);
   const [newStepText, setNewStepText] = useState("");
 
   // --- screen time ---
-  const [estimateHours, setEstimateHours] = useState(4);
-  const [targetMinutes, setTargetMinutes] = useState(195);
+  const [estimateHours, setEstimateHours] = useState(draft?.estimateHours ?? 4);
+  const [targetMinutes, setTargetMinutes] = useState(draft?.targetMinutes ?? 195);
 
   const estimateMinutes = Math.round(estimateHours * 60);
   const reclaimedPerDay = Math.max(0, estimateMinutes - targetMinutes);
@@ -41,6 +52,38 @@ export default function Onboarding() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
+  // Persist progress as a draft so reopening mid-onboarding resumes where
+  // the user left off instead of restarting the flow. Cleared on finish()
+  // below (and on "Reset all data" in Settings) so it never resurfaces
+  // stale answers for a later, separate onboarding attempt.
+  useEffect(() => {
+    saveValue(DRAFT_KEY, {
+      step, goalTitle, goalCategory, goalWhy, weeklyTargetMinutes, targetDate,
+      steps, stepsSeeded, estimateHours, targetMinutes,
+    });
+  }, [step, goalTitle, goalCategory, goalWhy, weeklyTargetMinutes, targetDate, steps, stepsSeeded, estimateHours, targetMinutes]);
+
+  // Guard against Android's hardware/gesture back button exiting onboarding
+  // outright from the middle of the flow (jarring, and easy to trigger by
+  // accident) instead of just stepping back one screen the way the in-app
+  // Back button does. One sentinel history entry is kept underneath the
+  // current step at all times; popping it steps backward and immediately
+  // pushes a fresh sentinel so the *next* back press is caught too. At step
+  // 0 there's nothing left to intercept, so back is free to actually leave
+  // onboarding, same as tapping back on a screen with no "Back" button.
+  useEffect(() => {
+    window.history.pushState({ onboardingSentinel: true }, "");
+    function handlePopState() {
+      setStep((s) => {
+        if (s === 0) return s;
+        window.history.pushState({ onboardingSentinel: true }, "");
+        return s - 1;
+      });
+    }
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
   function removeStep(i) {
     setSteps((prev) => prev.filter((_, idx) => idx !== i));
   }
@@ -54,8 +97,11 @@ export default function Onboarding() {
     if (step === 4) setTargetMinutes(Math.max(30, estimateMinutes - 45));
     setStep((s) => Math.min(STEP_COUNT - 1, s + 1));
   }
+  // Routed through the same history entry the hardware/gesture back button
+  // consumes (see the popstate effect above), so both paths decrement the
+  // step identically instead of drifting out of sync.
   function goBack() {
-    setStep((s) => Math.max(0, s - 1));
+    window.history.back();
   }
 
   function finish(goToFocus) {
@@ -75,6 +121,7 @@ export default function Onboarding() {
     if (goToFocus && createdGoal && createdGoal.steps[0]) {
       actions.setPendingSessionContext({ goalId: createdGoal.id, stepId: createdGoal.steps[0].id });
     }
+    saveValue(DRAFT_KEY, null);
     navigate(goToFocus ? "/focus" : "/", { replace: true });
   }
 
@@ -85,7 +132,7 @@ export default function Onboarding() {
       <div className="onb-step" key={step}>
         {step === 0 && (
           <>
-            <div className="onb-icon">⏳</div>
+            <div className="onb-icon" aria-hidden="true">⏳</div>
             <h1>Take your time back.</h1>
             <p className="lead">
               Where'd my time go? isn't a screen-time tracker. It's here to help you notice the time
@@ -99,13 +146,14 @@ export default function Onboarding() {
 
         {step === 1 && (
           <>
-            <div className="onb-icon">🎯</div>
+            <div className="onb-icon" aria-hidden="true">🎯</div>
             <h1>What do you want to work toward?</h1>
             <p className="lead">Something real and specific — "learn Spanish," "run a 5K," "finish my book." This becomes the point of the app.</p>
             <div className="form-row" style={{ marginBottom: 16 }}>
               <input
                 type="text"
                 placeholder="e.g. Learn to play guitar"
+                aria-label="What you want to work toward"
                 value={goalTitle}
                 onChange={(e) => setGoalTitle(e.target.value)}
                 style={{ textAlign: "center", fontSize: 16 }}
@@ -126,6 +174,7 @@ export default function Onboarding() {
               <input
                 type="text"
                 placeholder="Why does this matter to you? (optional)"
+                aria-label="Why this matters to you (optional)"
                 value={goalWhy}
                 onChange={(e) => setGoalWhy(e.target.value)}
               />
@@ -139,7 +188,7 @@ export default function Onboarding() {
 
         {step === 2 && (
           <>
-            <div className="onb-icon">🗓</div>
+            <div className="onb-icon" aria-hidden="true">🗓</div>
             <h1>How much time can you realistically give this each week?</h1>
             <p className="lead">Be honest, not ambitious — a target you'll actually hit beats one you won't.</p>
             <div className="onb-estimate-input">
@@ -147,6 +196,7 @@ export default function Onboarding() {
                 type="number"
                 min="15"
                 step="15"
+                aria-label="Weekly target in minutes"
                 value={weeklyTargetMinutes}
                 onChange={(e) => setWeeklyTargetMinutes(Number(e.target.value))}
               />
@@ -156,6 +206,7 @@ export default function Onboarding() {
             <div className="form-row" style={{ justifyContent: "center", marginBottom: 16 }}>
               <input
                 type="date"
+                aria-label="Target date (optional)"
                 value={targetDate}
                 onChange={(e) => setTargetDate(e.target.value)}
                 style={{ maxWidth: 200, textAlign: "center" }}
@@ -187,6 +238,7 @@ export default function Onboarding() {
               <input
                 type="text"
                 placeholder="Add your own step"
+                aria-label="Add your own step"
                 value={newStepText}
                 onChange={(e) => setNewStepText(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addCustomStep()}
@@ -202,7 +254,7 @@ export default function Onboarding() {
 
         {step === 4 && (
           <>
-            <div className="onb-icon">📱</div>
+            <div className="onb-icon" aria-hidden="true">📱</div>
             <h1>How much time do you spend on your phone?</h1>
             <p className="lead">A rough daily average is fine — you can refine this later with real data.</p>
             <div className="onb-estimate-input">
@@ -210,6 +262,7 @@ export default function Onboarding() {
                 type="number"
                 min="0"
                 step="0.5"
+                aria-label="Estimated hours per day on your phone"
                 value={estimateHours}
                 onChange={(e) => setEstimateHours(Number(e.target.value))}
               />
@@ -224,7 +277,7 @@ export default function Onboarding() {
 
         {step === 5 && (
           <>
-            <div className="onb-icon">🧭</div>
+            <div className="onb-icon" aria-hidden="true">🧭</div>
             <h1>Set your daily target</h1>
             <p className="lead">
               Based on your ~{formatHoursMinutes(estimateMinutes)} average, here's a starting point.
@@ -235,6 +288,7 @@ export default function Onboarding() {
                 type="number"
                 min="10"
                 step="5"
+                aria-label="Daily target in minutes"
                 value={targetMinutes}
                 onChange={(e) => setTargetMinutes(Number(e.target.value))}
               />
@@ -270,7 +324,7 @@ export default function Onboarding() {
 
         {step === 7 && (
           <>
-            <div className="onb-icon">🌤</div>
+            <div className="onb-icon" aria-hidden="true">🌤</div>
             <h1>Let's take your first step toward "{goalTitle}."</h1>
             <p className="lead">
               {steps[0] ? `First up: ${steps[0]}` : "Start a short focus session, or head to your dashboard."}

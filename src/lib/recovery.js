@@ -6,6 +6,7 @@
 // useful to suggest (on track, no target set, or no days left this week).
 
 import { addDays, startOfWeek } from "./dateUtils";
+import { safeMinutes } from "./reclaim";
 
 const MIN_SHORTFALL_TO_SUGGEST = 15; // don't nag over a trivial gap
 const MIN_SESSION_MINUTES = 15;
@@ -18,7 +19,7 @@ export function computeRecoveryPlan(goal, focusSessions, todayIso) {
   const weekEnd = addDays(weekStart, 6);
   const thisWeekMinutes = focusSessions
     .filter((s) => s.goalId === goal.id && s.date >= weekStart && s.date <= weekEnd)
-    .reduce((sum, s) => sum + s.minutes, 0);
+    .reduce((sum, s) => sum + safeMinutes(s.minutes), 0);
 
   const shortfall = goal.weeklyTargetMinutes - thisWeekMinutes;
   if (shortfall < MIN_SHORTFALL_TO_SUGGEST) return null;

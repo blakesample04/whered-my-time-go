@@ -7,6 +7,7 @@
 
 import { parseISODate } from "./dateUtils";
 import { categoryForApp } from "./budget";
+import { safeMinutes } from "./reclaim";
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MIN_SESSIONS_FOR_PATTERN = 3;
@@ -15,7 +16,7 @@ const MIN_TRACKED_DAYS_FOR_PATTERN = 5;
 export function avgGoalSessionMinutes(focusSessions) {
   const goalSessions = focusSessions.filter((s) => s.goalId);
   if (goalSessions.length === 0) return null;
-  return Math.round(goalSessions.reduce((sum, s) => sum + s.minutes, 0) / goalSessions.length);
+  return Math.round(goalSessions.reduce((sum, s) => sum + safeMinutes(s.minutes), 0) / goalSessions.length);
 }
 
 // A 2-hour window around whichever hour most goal sessions started in.
@@ -40,7 +41,7 @@ function totalsByWeekday(entries, getMinutes) {
   const counts = new Array(7).fill(0);
   for (const e of entries) {
     const dow = parseISODate(e.date).getDay();
-    totals[dow] += getMinutes(e);
+    totals[dow] += safeMinutes(getMinutes(e));
     counts[dow] += 1;
   }
   return totals.map((t, i) => (counts[i] > 0 ? t / counts[i] : 0));
@@ -68,7 +69,7 @@ export function biggestDistraction(usageLog, appCategories) {
   for (const u of usageLog) {
     const cat = categoryForApp(u.appName, appCategories);
     if (cat === "goals") continue;
-    totals[cat] = (totals[cat] || 0) + u.minutes;
+    totals[cat] = (totals[cat] || 0) + safeMinutes(u.minutes);
   }
   const entries = Object.entries(totals);
   if (entries.length === 0) return null;

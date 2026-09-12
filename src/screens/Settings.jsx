@@ -8,6 +8,7 @@ import { parseCSV, splitHeaderAndRows, guessColumnMapping, normalizeRows } from 
 import { BUDGET_CATEGORIES } from "../state/defaultState";
 import { PREMIUM_FEATURES } from "../lib/premium";
 import { startCheckout, checkSubscription } from "../lib/billing";
+import { saveValue } from "../state/storage";
 import Toggle from "../components/Toggle";
 import EmptyState from "../components/EmptyState";
 
@@ -433,7 +434,13 @@ export default function Settings() {
         <button
           className="secondary"
           onClick={() => {
-            if (confirm("Reset all data in Where'd my time go? This can't be undone.")) actions.resetAllData();
+            if (confirm("Reset all data in Where'd my time go? This can't be undone.")) {
+              // Also clear any in-progress onboarding draft (see
+              // Onboarding.jsx) so resetting doesn't resurrect stale
+              // answers from before the reset when onboarding restarts.
+              saveValue("onboardingDraft", null);
+              actions.resetAllData();
+            }
           }}
         >
           Reset all data

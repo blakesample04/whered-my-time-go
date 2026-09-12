@@ -43,10 +43,20 @@ export function addTargetChange(targetHistory, dateIso, minutesPerDay) {
   );
 }
 
+// Defensive against corrupted persisted data (a hand-edited localStorage
+// value, a bad CSV row that slipped past validation, a record written by a
+// future/foreign app version): a usage/session minutes value should always
+// be treated as a finite, non-negative number, never NaN/Infinity/negative,
+// since those would otherwise poison every sum built from it (time bank,
+// streaks, XP, budget, weekly report).
+export function safeMinutes(n) {
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
 export function totalUsageForDate(dateIso, usageLog) {
   return usageLog
     .filter((u) => u.date === dateIso)
-    .reduce((sum, u) => sum + u.minutes, 0);
+    .reduce((sum, u) => sum + safeMinutes(u.minutes), 0);
 }
 
 // All distinct dates the user actually has usage data for — i.e. "tracked days".
@@ -97,17 +107,19 @@ export function computeTimeBank(state, todayIso = localDateISO()) {
   }
 
   for (const session of focusSessions) {
-    allTime += session.minutes;
-    if (session.date === todayIso) today += session.minutes;
-    if (isSameOrAfter(session.date, weekStart)) week += session.minutes;
-    if (isSameOrAfter(session.date, monthStart)) month += session.minutes;
+    const minutes = safeMinutes(session.minutes);
+    allTime += minutes;
+    if (session.date === todayIso) today += minutes;
+    if (isSameOrAfter(session.date, weekStart)) week += minutes;
+    if (isSameOrAfter(session.date, monthStart)) month += minutes;
   }
 
   for (const c of challengeCompletions) {
-    allTime += c.minutes;
-    if (c.date === todayIso) today += c.minutes;
-    if (isSameOrAfter(c.date, weekStart)) week += c.minutes;
-    if (isSameOrAfter(c.date, monthStart)) month += c.minutes;
+    const minutes = safeMinutes(c.minutes);
+    allTime += minutes;
+    if (c.date === todayIso) today += minutes;
+    if (isSameOrAfter(c.date, weekStart)) week += minutes;
+    if (isSameOrAfter(c.date, monthStart)) month += minutes;
   }
 
   return { today, week, month, allTime };

@@ -10,7 +10,14 @@ const PREFIX = "recoup.";
 export function loadValue(key, fallback) {
   try {
     const raw = localStorage.getItem(PREFIX + key);
-    return raw ? JSON.parse(raw) : fallback;
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    // Guard against corrupted/unexpected shapes — e.g. a value written by a
+    // future/foreign app version, or hand-edited localStorage — so a single
+    // bad key can't turn an expected array into `null`/an object and crash
+    // every `.map`/`.filter`/`.reduce` call site that assumes it's an array.
+    if (Array.isArray(fallback) && !Array.isArray(parsed)) return fallback;
+    return parsed;
   } catch {
     return fallback;
   }

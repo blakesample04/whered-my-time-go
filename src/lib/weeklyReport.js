@@ -6,7 +6,7 @@
 // which day of the week the report is viewed on.
 
 import { addDays, startOfWeek, isSameOrAfter, isSameOrBefore, dayOfWeekLabel, todayISO } from "./dateUtils";
-import { trackedDates, totalUsageForDate, dailyReclaimedMinutes } from "./reclaim";
+import { trackedDates, totalUsageForDate, dailyReclaimedMinutes, safeMinutes } from "./reclaim";
 
 function inRange(dateIso, startIso, endIso) {
   return isSameOrAfter(dateIso, startIso) && isSameOrBefore(dateIso, endIso);
@@ -16,7 +16,7 @@ function usageByApp(usageLog, startIso, endIso) {
   const totals = {};
   for (const entry of usageLog) {
     if (!inRange(entry.date, startIso, endIso)) continue;
-    totals[entry.appName] = (totals[entry.appName] || 0) + entry.minutes;
+    totals[entry.appName] = (totals[entry.appName] || 0) + safeMinutes(entry.minutes);
   }
   return totals;
 }

@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 export default function CheckoutCancel() {
   const navigate = useNavigate();
   return (
-    <div className="screen">
+    <div className="screen no-navbar">
       <div className="screen-title">
         <h1>Premium</h1>
       </div>

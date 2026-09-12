@@ -133,6 +133,7 @@ export default function Focus() {
                 type="number"
                 min="1"
                 max="240"
+                aria-label="Custom session length in minutes"
                 value={customMinutes}
                 onChange={(e) => setCustomMinutes(Number(e.target.value))}
                 style={{ maxWidth: 90, textAlign: "center", flex: "0 1 90px" }}

@@ -38,7 +38,13 @@ export default async (req) => {
       customerId = existing.data[0]?.id;
     }
 
-    const origin = req.headers.get("origin") || new URL(req.url).origin;
+    // Derived from the request URL Netlify itself routed to this function
+    // (validated against the deployed site's domain/SNI), not from the
+    // client-supplied `Origin` header — that header is trivially spoofable
+    // by any non-browser caller and would otherwise let an attacker steer
+    // success_url/cancel_url to an arbitrary domain (open redirect right
+    // after a real card payment).
+    const origin = new URL(req.url).origin;
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",

@@ -14,6 +14,14 @@
   animation: screenIn var(--dur-base) var(--ease);
 }
 
+/* Screens rendered without the floating bottom NavBar (Stripe's checkout
+   success/cancel redirects) don't need the 110px of bottom padding reserved
+   above to clear it — left in place, that padding is just dead empty space
+   below the content. */
+.screen.no-navbar {
+  padding-bottom: max(var(--sp-5), env(safe-area-inset-bottom));
+}
+
 @keyframes screenIn {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: none; }
@@ -258,29 +266,6 @@ header.top .wordmark .dot {
 /* ==========================================================================
    CHIPS / BADGES
    ========================================================================== */
-
-.chip {
-  background: var(--accent-bg);
-  color: var(--text-h);
-  border-radius: var(--r-pill);
-  padding: 5px 12px;
-  font-size: 12.5px;
-  font-weight: 600;
-  display: inline-block;
-}
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: var(--r-pill);
-  background: var(--card-2);
-  border: 1px solid var(--border);
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-h);
-}
 
 /* ==========================================================================
    LINEAR PROGRESS BAR
@@ -1561,8 +1546,8 @@ header.top .wordmark .dot {
 .modal-header .link {
   font-size: 18px;
   text-decoration: none;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1847,17 +1832,6 @@ header.top .wordmark .dot {
 /* ==========================================================================
    MISC
    ========================================================================== */
-
-.today-status {
-  display: inline-block;
-  margin-top: 8px;
-  font-size: 12.5px;
-  font-weight: 700;
-  padding: 4px 12px;
-  border-radius: var(--r-pill);
-}
-.today-status.over { color: var(--warn); background: var(--warn-bg); }
-.today-status.under { color: var(--good); background: var(--good-bg); }
 
 .link-cta {
   display: inline-flex;

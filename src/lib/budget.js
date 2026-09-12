@@ -7,6 +7,7 @@
 // goalId), everything else comes from categorized usage-log entries.
 
 import { BUDGET_CATEGORIES } from "../state/defaultState";
+import { safeMinutes } from "./reclaim";
 
 export function categoryForApp(appName, appCategories) {
   return appCategories[appName] || "other";
@@ -17,11 +18,11 @@ export function categoryMinutesForDate(categoryId, dateIso, { usageLog, appCateg
   if (categoryId === "goals") {
     return focusSessions
       .filter((s) => s.date === dateIso && s.goalId)
-      .reduce((sum, s) => sum + s.minutes, 0);
+      .reduce((sum, s) => sum + safeMinutes(s.minutes), 0);
   }
   return usageLog
     .filter((u) => u.date === dateIso && categoryForApp(u.appName, appCategories) === categoryId)
-    .reduce((sum, u) => sum + u.minutes, 0);
+    .reduce((sum, u) => sum + safeMinutes(u.minutes), 0);
 }
 
 // { [categoryId]: minutesUsed } for every budget category on one date.
