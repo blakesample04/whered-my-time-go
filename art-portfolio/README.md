@@ -20,7 +20,7 @@ The About text is in the HTML under `<!-- ABOUT -->`.
    Until you do, "Buy a print" emails you instead.
 
 ## Originals
-"Buy original" opens an email to you. To take card payments directly, make a Stripe Payment Link
+"Inquire" on an original opens an email to you. To take card payments directly, make a Stripe Payment Link
 per painting and swap it in for `originalLink()` in the script.
 
 ## Adding a painting
