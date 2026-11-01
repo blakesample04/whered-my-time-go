@@ -39,7 +39,10 @@
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--wall); color: var(--ink); font: 400 1rem/1.65 var(--body); }
 img { max-width: 100%; height: auto; display: block; }
-[hidden], section[data-view][hidden] { display: none !important; }
+[hidden] { display: none !important; }
+html { scroll-behavior: smooth; }
+.panel { scroll-margin-top: 96px; }
+.panel + .panel { margin-top: clamp(110px, 14vw, 180px); }
 a { color: inherit; }
 :focus-visible { outline: 2px solid var(--moss); outline-offset: 4px; }
 .wrap {
@@ -54,6 +57,14 @@ h1, h2, h3 {
 p { margin: 0; }
 
 /* Header */
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px);
+  z-index: 10; background: var(--wall);
+}
+header.site {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: color-mix(in srgb, var(--wall) 94%, transparent); backdrop-filter: blur(6px);
+}
 header.site .wrap {
   display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;
   padding-block: 32px;
@@ -78,7 +89,7 @@ main { padding-block: 40px 120px; }
 /* Home */
 .hero {
   display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: clamp(32px, 6vw, 96px);
-  align-items: end; margin-bottom: clamp(88px, 12vw, 150px);
+  align-items: end;
 }
 .hero-text { display: grid; gap: 20px; padding-bottom: 8px; min-width: 0; }
 .hero h1 { font-size: clamp(2.8rem, 6vw, 4.6rem); line-height: 1; letter-spacing: -.015em; }
@@ -106,7 +117,7 @@ main { padding-block: 40px 120px; }
 
 /* Shop tabs */
 .shop-head { display: flex; justify-content: space-between; align-items: end; gap: 20px; flex-wrap: wrap; margin-bottom: 48px; }
-.shop-head h1 { font-size: clamp(2.2rem, 5vw, 3.2rem); line-height: 1.05; }
+.shop-head h2 { font-size: clamp(2.2rem, 5vw, 3.2rem); line-height: 1.05; }
 .tabs { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--hush); }
 .tabs button {
   font: 500 .92rem/1 var(--body); color: var(--muted); background: transparent; border: 0; cursor: pointer;
@@ -121,7 +132,7 @@ main { padding-block: 40px 120px; }
 .about figure img { box-shadow: var(--canvas-shadow); }
 .about figcaption { margin-top: 14px; font-size: .85rem; color: var(--muted); }
 .about-text { display: grid; gap: 20px; min-width: 0; max-width: 34em; }
-.about-text h1 { font-size: clamp(2.2rem, 5vw, 3.2rem); line-height: 1.05; margin-bottom: 8px; }
+.about-text h2 { font-size: clamp(2.2rem, 5vw, 3.2rem); line-height: 1.05; margin-bottom: 8px; }
 .about-text p { font-size: 1.05rem; }
 .contact { display: grid; gap: 8px; padding-top: 24px; margin-top: 8px; border-top: 1px solid var(--hush); }
 .contact p { color: var(--muted); font-size: .95rem; }
@@ -157,18 +168,19 @@ dialog::backdrop { background: rgb(15 19 15 / .82); }
   .lb-img img { max-height: 58vh; }
   .lb-info { padding: 0 24px 28px; }
   main { padding-block: 16px 88px; }
-  header.site .wrap { padding-block: 22px; }
+  header.site .wrap { padding-block: 18px; }
+  .panel { scroll-margin-top: 72px; }
 }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } html { scroll-behavior: auto; } }
 </style>
 </head>
 <body>
 
-<header class="site">
+<header class="site" id="top">
   <div class="wrap">
-    <a class="brand" href="#home" data-artist-name>Blake Sample</a>
+    <a class="brand" href="#top" data-artist-name>Blake Sample</a>
     <nav aria-label="Main">
-      <a href="#home">Work</a>
+      <a href="#top">Work</a>
       <a href="#shop">Shop</a>
       <a href="#about">About</a>
     </nav>
@@ -178,27 +190,21 @@ dialog::backdrop { background: rgb(15 19 15 / .82); }
 <main class="wrap">
 
   <!-- HOME -->
-  <section data-view="home">
+  <section class="panel" id="work" data-nav="top">
     <div class="hero">
       <div class="hero-text">
         <h1 data-artist-name>Blake Sample</h1>
         <p>Landscapes in acrylic, painted from the places I walk: skies, water, trees and light.</p>
-        <a class="quiet-link" href="#shop">Visit the shop</a>
+        <a class="quiet-link" href="#shop">Shop the paintings ↓</a>
       </div>
       <figure id="hero-figure" style="margin:0"></figure>
     </div>
-
-    <div class="section-title">
-      <h2>Selected work</h2>
-      <a class="quiet-link" href="#shop">See all</a>
-    </div>
-    <div class="grid" id="featured-grid"></div>
   </section>
 
   <!-- SHOP -->
-  <section data-view="shop" hidden>
+  <section class="panel" id="shop" data-nav="shop">
     <div class="shop-head">
-      <h1>Shop</h1>
+      <h2>Shop</h2>
       <div class="tabs" role="tablist" aria-label="Shop">
         <button type="button" role="tab" id="tab-prints" data-tab="prints" aria-selected="true" aria-controls="shop-grid">Prints</button>
         <button type="button" role="tab" id="tab-originals" data-tab="originals" aria-selected="false" aria-controls="shop-grid">Originals</button>
@@ -208,11 +214,11 @@ dialog::backdrop { background: rgb(15 19 15 / .82); }
   </section>
 
   <!-- ABOUT -->
-  <section data-view="about" hidden>
+  <section class="panel" id="about" data-nav="about">
     <div class="about">
       <figure id="about-figure"></figure>
       <div class="about-text">
-        <h1>Hi, I'm <span data-artist-name>Blake Sample</span>.</h1>
+        <h2>Hi, I'm <span data-artist-name>Blake Sample</span>.</h2>
         <p>I paint landscapes in acrylic, mostly on small canvases. Many of them are places I've stood in myself: a stone bridge on a morning walk, a canyon trail, a field just after sunset.</p>
         <p>I build each painting out of short, square brushstrokes. Up close they read as patches of color, and from across the room they settle into sky, trees and water. I'm drawn to the moment light changes: pink clouds at dusk, the last sun on a ridge, mist lifting off a pond.</p>
         <p>Now and then I paint a study of a work I love, like my takes on Dalí's melting clocks and Magritte's lit house under a daytime sky. They're how I learn.</p>
@@ -257,7 +263,6 @@ dialog::backdrop { background: rgb(15 19 15 / .82); }
      printUrl   – that painting's product page on your print shop.
                   Leave '' to fall back to PRINT_SHOP, or to an email
                   if PRINT_SHOP is empty too.
-     featured   – true to show it on the home page.
    ===================================================================== */
 const ARTIST_NAME = 'Blake Sample';
 const EMAIL = 'blake.sample04@gmail.com';
@@ -265,13 +270,13 @@ const PRINT_SHOP = '';
 const HERO = 'valley-oaks';
 
 const PAINTINGS = [
-  { id: 'valley-oaks',          title: 'Valley Oaks',               size: '12 × 16 in', original: null,   printFrom: 30, printUrl: '', featured: true },
-  { id: 'alpenglow',            title: 'Alpenglow and Fireweed',    size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '', featured: true },
-  { id: 'white-church',         title: 'White Church at Dusk',      size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '', featured: true },
-  { id: 'melting-hour',         title: 'Melting Hour (after Dalí)', size: '12 × 16 in', original: null,   printFrom: 30, printUrl: '', featured: true },
-  { id: 'canyon-trail',         title: 'Canyon Trail',              size: '12 × 16 in', original: 'sold', printFrom: 30, printUrl: '', featured: true },
-  { id: 'pink-evening',         title: 'Pink Evening',              size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '', featured: true },
-  { id: 'misty-sunrise',        title: 'Misty Sunrise',             size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '', featured: true },
+  { id: 'valley-oaks',          title: 'Valley Oaks',               size: '12 × 16 in', original: null,   printFrom: 30, printUrl: '' },
+  { id: 'alpenglow',            title: 'Alpenglow and Fireweed',    size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '' },
+  { id: 'white-church',         title: 'White Church at Dusk',      size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '' },
+  { id: 'melting-hour',         title: 'Melting Hour (after Dalí)', size: '12 × 16 in', original: null,   printFrom: 30, printUrl: '' },
+  { id: 'canyon-trail',         title: 'Canyon Trail',              size: '12 × 16 in', original: 'sold', printFrom: 30, printUrl: '' },
+  { id: 'pink-evening',         title: 'Pink Evening',              size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '' },
+  { id: 'misty-sunrise',        title: 'Misty Sunrise',             size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '' },
   { id: 'mystic-lake-bridge',   title: 'Mystic Lake Bridge',        size: '12 × 16 in', original: null,   printFrom: 30, printUrl: '' },
   { id: 'stone-bridge-morning', title: 'Stone Bridge, Morning',     size: '12 × 16 in', original: 340,    printFrom: 30, printUrl: '' },
   { id: 'summer-clouds',        title: 'Summer Clouds',             size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '' },
@@ -325,10 +330,6 @@ function render() {
 
   document.getElementById('hero-figure').innerHTML = canvas(byId[HERO], false, false);
 
-  document.getElementById('featured-grid').innerHTML = PAINTINGS
-    .filter(p => p.featured && p.id !== HERO)
-    .map(p => `<figure class="piece" style="margin-inline:0">${canvas(p)}${caption(p)}</figure>`).join('');
-
   const about = byId['canyon-trail'];
   document.getElementById('about-figure').innerHTML =
     `<img src="${img(about, false)}" alt="${esc(about.title)}, ${MEDIUM}" loading="lazy">
@@ -375,20 +376,19 @@ document.getElementById('copy-email').addEventListener('click', async e => {
   setTimeout(() => btn.textContent = 'Copy', 1600);
 });
 
-/* Page switching: #home, #shop, #about */
-const VIEWS = ['home', 'shop', 'about'];
-function route() {
-  const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'home';
-  document.querySelectorAll('section[data-view]').forEach(s => s.hidden = s.dataset.view !== v);
-  document.querySelectorAll('nav a').forEach(a =>
-    a.getAttribute('href') === '#' + v ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
-  document.title = { home: ARTIST_NAME, shop: `Shop · ${ARTIST_NAME}`, about: `About · ${ARTIST_NAME}` }[v];
-  window.scrollTo(0, 0);
+/* Highlight the nav link for the section in view */
+const navLinks = [...document.querySelectorAll('nav a')];
+const setCurrent = key => navLinks.forEach(a =>
+  a.getAttribute('href') === '#' + key ? a.setAttribute('aria-current', 'true') : a.removeAttribute('aria-current'));
+if ('IntersectionObserver' in window) {
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(en => { if (en.isIntersecting) setCurrent(en.target.dataset.nav); });
+  }, { rootMargin: '-45% 0px -50% 0px' });
+  document.querySelectorAll('.panel').forEach(sec => io.observe(sec));
 }
-window.addEventListener('hashchange', route);
+setCurrent('top');
 
 render();
-route();
 </script>
 </body>
 </html>
