@@ -120,6 +120,7 @@ main { padding-block: 40px 120px; }
 /* Shop tabs */
 .shop-head { display: flex; justify-content: space-between; align-items: end; gap: 20px; flex-wrap: wrap; margin-bottom: 48px; }
 .shop-head h2 { font-size: clamp(2.2rem, 5vw, 3.2rem); line-height: 1.05; }
+.shop-title { display: grid; gap: 14px; justify-items: start; }
 .tabs { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--hush); }
 .tabs button {
   font: 500 .92rem/1 var(--body); color: var(--muted); background: transparent; border: 0; cursor: pointer;
@@ -206,7 +207,10 @@ dialog::backdrop { background: rgb(15 19 15 / .82); }
   <!-- SHOP -->
   <section class="panel" id="shop" data-nav="shop">
     <div class="shop-head">
-      <h2>Shop</h2>
+      <div class="shop-title">
+        <h2>Shop</h2>
+        <a class="quiet-link" id="all-prints" href="#" target="_blank" rel="noopener" hidden>See all prints on Fine Art America</a>
+      </div>
       <div class="tabs" role="tablist" aria-label="Shop">
         <button type="button" role="tab" id="tab-prints" data-tab="prints" aria-selected="true" aria-controls="shop-grid">Prints</button>
         <button type="button" role="tab" id="tab-originals" data-tab="originals" aria-selected="false" aria-controls="shop-grid">Originals</button>
@@ -269,6 +273,7 @@ dialog::backdrop { background: rgb(15 19 15 / .82); }
 const ARTIST_NAME = 'Blake Sample';
 const EMAIL = 'blake.sample04@gmail.com';
 const PRINT_SHOP = '';
+const PRINT_PROFILE = 'https://fineartamerica.com/profiles/blake-sample';
 const HERO = 'valley-oaks';
 
 /* Print sizes and prices, by the size of the original painting.
@@ -290,11 +295,11 @@ const PAINTINGS = [
   { id: 'summer-clouds',        title: 'Summer Clouds',             size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
   { id: 'cloudbank',            title: 'Cloudbank',                 size: '5 × 7 in',   original: 110,    prints: true, printUrl: 'https://fineartamerica.com/featured/cloudbank-blake-sample.html' },
   { id: 'overlook',             title: 'Overlook',                  size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
-  { id: 'windswept',            title: 'Windswept',                 size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
+  { id: 'windswept',            title: 'Windswept',                 size: '5 × 7 in',   original: 110,    prints: true, printUrl: 'https://fineartamerica.com/featured/windswept-blake-sample.html' },
   { id: 'butte-golden-hour',    title: 'Golden Hour',               size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
-  { id: 'river-at-sundown',     title: 'River at Sundown',          size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
+  { id: 'river-at-sundown',     title: 'River at Sundown',          size: '5 × 7 in',   original: 110,    prints: true, printUrl: 'https://fineartamerica.com/featured/river-at-sundown-blake-sample.html' },
   { id: 'mesas',                title: 'Mesas',                     size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
-  { id: 'last-light',           title: 'Last Light Over the Hills', size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
+  { id: 'last-light',           title: 'Last Light Over the Hills', size: '5 × 7 in',   original: 110,    prints: true, printUrl: 'https://fineartamerica.com/featured/last-light-over-the-hills-blake-sample.html' },
   { id: 'between-two-trees',    title: 'Between Two Trees',         size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
   { id: 'hillside-clouds',      title: 'Hillside Clouds',           size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
   { id: 'marsh-at-dusk',        title: 'Marsh at Dusk',             size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
@@ -350,6 +355,9 @@ function render() {
   document.getElementById('about-figure').innerHTML =
     `<img src="${img(about, false)}" alt="${esc(about.title)}, ${MEDIUM}" loading="lazy">
      <figcaption>${esc(about.title)}</figcaption>`;
+
+  const allPrints = document.getElementById('all-prints');
+  if (PRINT_PROFILE) { allPrints.href = PRINT_PROFILE; allPrints.hidden = false; }
 
   renderShop('prints');
 }
