@@ -271,10 +271,11 @@ const EMAIL = 'blake.sample04@gmail.com';
 const PRINT_SHOP = '';
 const HERO = 'valley-oaks';
 
-/* Print sizes and prices, by the size of the original painting. */
+/* Print sizes and prices, by the size of the original painting.
+   Every size keeps the painting's shape (5:7 or 3:4), so nothing is trimmed. */
 const PRINT_SIZES = {
-  '5 × 7 in':   [['5 × 7 in', 30], ['8 × 10 in', 45], ['11 × 14 in', 65]],
-  '12 × 16 in': [['9 × 12 in', 65], ['12 × 16 in', 90], ['18 × 24 in', 140], ['24 × 32 in', 195]],
+  '5 × 7 in':   [['5 × 7 in', 30], ['10 × 14 in', 60], ['15 × 21 in', 95]],
+  '12 × 16 in': [['9 × 12 in', 65], ['12 × 16 in', 90], ['18 × 24 in', 140]],
 };
 
 const PAINTINGS = [
