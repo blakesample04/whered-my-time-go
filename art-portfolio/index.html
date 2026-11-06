@@ -266,7 +266,8 @@ dialog::backdrop { background: rgb(15 19 15 / .82); }
                   Originals tab.)
      prints     – true to offer prints, false for none. Sizes and
                   prices come from PRINT_SIZES below.
-     printUrl   – that painting's product page on your print shop.
+     printUrl   – that painting's Fine Art America page. Used for both
+                  "Buy print" and "Buy original".
                   Leave '' to fall back to PRINT_SHOP, or to an email
                   if PRINT_SHOP is empty too.
    ===================================================================== */
@@ -328,10 +329,16 @@ function printTable(p) {
   return sizes.length ? `<ul class="print-sizes">${sizes.map(([sz, pr]) =>
     `<li><span>${sz}</span><span>$${pr}</span></li>`).join('')}</ul>` : '';
 }
+/* Originals link to the Fine Art America listing when there is one, otherwise email. */
+function originalLink(p) {
+  return p.printUrl
+    ? `<a href="${esc(p.printUrl)}" target="_blank" rel="noopener">Buy original</a>`
+    : `<a href="${mailto(`Original: "${p.title}"`)}">Inquire</a>`;
+}
 function originalLine(p) {
   if (p.original === 'sold') return `<div class="sale"><span class="sold-tag">Sold</span></div>`;
   if (typeof p.original === 'number')
-    return `<div class="sale"><span class="price">Original · $${p.original}</span><a href="${mailto(`Original: "${p.title}"`)}">Inquire</a></div>`;
+    return `<div class="sale"><span class="price">Original · $${p.original}</span>${originalLink(p)}</div>`;
   return '';
 }
 
