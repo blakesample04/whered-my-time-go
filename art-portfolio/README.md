@@ -8,7 +8,8 @@ Everything you'll change is at the top of the `<script>` in `index.html`, under 
 
 - `ARTIST_NAME`, `EMAIL`
 - `PRINT_SHOP`: your print-on-demand storefront URL
-- `PAINTINGS`: title, size, original price (a number, `'sold'`, or `null` = not for sale), lowest print price,
+- `PRINT_SIZES`: print sizes and prices for 5 × 7 and 12 × 16 paintings
+- `PAINTINGS`: title, size, original price (a number, `'sold'`, or `null` = not for sale), `prints` (true/false),
 
 The About text is in the HTML under `<!-- ABOUT -->`.
 

@@ -111,6 +111,8 @@ main { padding-block: 40px 120px; }
 .caption .size { font-size: .85rem; color: var(--muted); white-space: nowrap; }
 .sale { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: .92rem; margin-top: -8px; }
 .sale .price { color: var(--muted); font-variant-numeric: tabular-nums; }
+.print-sizes { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: .88rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.print-sizes li { display: flex; justify-content: space-between; gap: 12px; }
 .sale a { color: var(--moss); text-decoration: none; white-space: nowrap; }
 .sale a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .sold-tag { font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
@@ -258,7 +260,8 @@ dialog::backdrop { background: rgb(15 19 15 / .82); }
                   'sold' if it has sold, or null if it's not for sale.
                   (Only for-sale and sold originals appear in the
                   Originals tab.)
-     printFrom  – lowest print price, or null for no prints.
+     prints     – true to offer prints, false for none. Sizes and
+                  prices come from PRINT_SIZES below.
      printUrl   – that painting's product page on your print shop.
                   Leave '' to fall back to PRINT_SHOP, or to an email
                   if PRINT_SHOP is empty too.
@@ -268,27 +271,33 @@ const EMAIL = 'blake.sample04@gmail.com';
 const PRINT_SHOP = '';
 const HERO = 'valley-oaks';
 
+/* Print sizes and prices, by the size of the original painting. */
+const PRINT_SIZES = {
+  '5 × 7 in':   [['5 × 7 in', 30], ['8 × 10 in', 45], ['11 × 14 in', 65]],
+  '12 × 16 in': [['9 × 12 in', 65], ['12 × 16 in', 90], ['18 × 24 in', 140], ['24 × 32 in', 195]],
+};
+
 const PAINTINGS = [
-  { id: 'valley-oaks',          title: 'Valley Oaks',               size: '12 × 16 in', original: null,   printFrom: 30, printUrl: '' },
-  { id: 'alpenglow',            title: 'Alpenglow and Fireweed',    size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '' },
-  { id: 'white-church',         title: 'White Church at Dusk',      size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '' },
-  { id: 'melting-hour',         title: 'Melting Hour (after Dalí)', size: '12 × 16 in', original: null,   printFrom: 30, printUrl: '' },
-  { id: 'canyon-trail',         title: 'Canyon Trail',              size: '12 × 16 in', original: 'sold', printFrom: 30, printUrl: '' },
-  { id: 'pink-evening',         title: 'Pink Evening',              size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '' },
-  { id: 'misty-sunrise',        title: 'Misty Sunrise',             size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '' },
-  { id: 'mystic-lake-bridge',   title: 'Mystic Lake Bridge',        size: '12 × 16 in', original: null,   printFrom: 30, printUrl: '' },
-  { id: 'summer-clouds',        title: 'Summer Clouds',             size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '' },
-  { id: 'cloudbank',            title: 'Cloudbank',                 size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '' },
-  { id: 'overlook',             title: 'Overlook',                  size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '' },
-  { id: 'windswept',            title: 'Windswept',                 size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '' },
-  { id: 'butte-golden-hour',    title: 'Butte at Golden Hour',      size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '' },
-  { id: 'river-at-sundown',     title: 'River at Sundown',          size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '' },
-  { id: 'mesas',                title: 'Mesas',                     size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '' },
-  { id: 'last-light',           title: 'Last Light Over the Hills', size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '' },
-  { id: 'between-two-trees',    title: 'Between Two Trees',         size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '' },
-  { id: 'hillside-clouds',      title: 'Hillside Clouds',           size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '' },
-  { id: 'marsh-at-dusk',        title: 'Marsh at Dusk',             size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '' },
-  { id: 'lights-on',            title: 'Lights On (after Magritte)',size: '5 × 7 in',   original: 110,    printFrom: 20, printUrl: '' },
+  { id: 'valley-oaks',          title: 'Valley Oaks',               size: '12 × 16 in', original: null,   prints: true, printUrl: '' },
+  { id: 'alpenglow',            title: 'Mountain Landscape',        size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
+  { id: 'white-church',         title: 'White Church at Dusk',      size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
+  { id: 'melting-hour',         title: 'Melting Hour (after Dalí)', size: '12 × 16 in', original: null,   prints: true, printUrl: '' },
+  { id: 'canyon-trail',         title: 'Canyon Trail',              size: '12 × 16 in', original: 'sold', prints: true, printUrl: '' },
+  { id: 'pink-evening',         title: 'Pink Evening',              size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
+  { id: 'misty-sunrise',        title: 'Misty Sunrise',             size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
+  { id: 'mystic-lake-bridge',   title: 'Mystic Lake Bridge',        size: '12 × 16 in', original: null,   prints: true, printUrl: '' },
+  { id: 'summer-clouds',        title: 'Summer Clouds',             size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
+  { id: 'cloudbank',            title: 'Cloudbank',                 size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
+  { id: 'overlook',             title: 'Overlook',                  size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
+  { id: 'windswept',            title: 'Windswept',                 size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
+  { id: 'butte-golden-hour',    title: 'Golden Hour',               size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
+  { id: 'river-at-sundown',     title: 'River at Sundown',          size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
+  { id: 'mesas',                title: 'Mesas',                     size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
+  { id: 'last-light',           title: 'Last Light Over the Hills', size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
+  { id: 'between-two-trees',    title: 'Between Two Trees',         size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
+  { id: 'hillside-clouds',      title: 'Hillside Clouds',           size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
+  { id: 'marsh-at-dusk',        title: 'Marsh at Dusk',             size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
+  { id: 'lights-on',            title: 'Lights On (after Magritte)',size: '5 × 7 in',   original: 110,    prints: true, printUrl: '' },
 ];
 /* ===================================================================== */
 
@@ -303,9 +312,15 @@ function printLink(p) {
   if (PRINT_SHOP) return `<a href="${esc(PRINT_SHOP)}" target="_blank" rel="noopener">Buy print</a>`;
   return `<a href="${mailto(`Print of "${p.title}"`)}">Ask about prints</a>`;
 }
+const printSizes = p => (p.prints && PRINT_SIZES[p.size]) || [];
 function printLine(p) {
-  return p.printFrom == null ? '' :
-    `<div class="sale"><span class="price">Prints from $${p.printFrom}</span>${printLink(p)}</div>`;
+  const sizes = printSizes(p);
+  return sizes.length ? `<div class="sale"><span class="price">Prints from $${sizes[0][1]}</span>${printLink(p)}</div>` : '';
+}
+function printTable(p) {
+  const sizes = printSizes(p);
+  return sizes.length ? `<ul class="print-sizes">${sizes.map(([sz, pr]) =>
+    `<li><span>${sz}</span><span>$${pr}</span></li>`).join('')}</ul>` : '';
 }
 function originalLine(p) {
   if (p.original === 'sold') return `<div class="sale"><span class="sold-tag">Sold</span></div>`;
@@ -340,7 +355,7 @@ function render() {
 
 function renderShop(tab) {
   const list = tab === 'prints'
-    ? PAINTINGS.filter(p => p.printFrom != null)
+    ? PAINTINGS.filter(p => printSizes(p).length)
     : PAINTINGS.filter(p => p.original != null)
         .sort((a, b) => (a.original === 'sold') - (b.original === 'sold'));
   document.getElementById('shop-grid').innerHTML = list.length
@@ -361,7 +376,7 @@ function openPiece(id) {
   const lbImg = document.getElementById('lb-img');
   lbImg.src = img(p, false); lbImg.alt = `${p.title}, ${MEDIUM}`;
   document.getElementById('lb-info').innerHTML =
-    `<h2>${esc(p.title)}</h2><p class="size">${p.size}, ${MEDIUM}</p>${originalLine(p)}${printLine(p)}`;
+    `<h2>${esc(p.title)}</h2><p class="size">${p.size}, ${MEDIUM}</p>${originalLine(p)}${printLine(p)}${printTable(p)}`;
   if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
 }
 document.addEventListener('click', e => { const t = e.target.closest('[data-open]'); if (t) openPiece(t.dataset.open); });
